@@ -1,85 +1,98 @@
-import asyncio
-import binascii
-import struct
-from src.utils.decoder import Decoder
 import logging
+from datetime import datetime
 
-class GPSHandler:
-    def __init__(self, data_manager):
-        self.data_manager = data_manager
+class Decoder:
+    def __init__(self, payload, imei):
+        self.payload = payload
+        self.imei = imei
+        self.precision = 10000000.0
 
-    async def handle_connection(self, reader, writer):
-        addr = writer.get_extra_info('peername')
-        logging.info(f"New connection from {addr}")
+    def decode_data(self):
+        logging.debug(f"Raw payload: {self.payload}")
 
-        try:
-            imei = await self.handle_authentication(reader, writer)
-            if not imei:
-                return
+        if len(self.payload) < 32:  # Minimum length for a valid payload
+            logging.warning("Payload too short")
+            return []
 
-            while True:
-                await self.handle_gps_data(imei, reader, writer)
+        data_field_length = int(self.payload[8:16], 16)
+        codec = int(self.payload[16:18], 16)
+        number_of_data = int(self.payload[18:20], 16)
 
-        except asyncio.CancelledError:
-            logging.info(f"Connection handler for {addr} was cancelled")
-        except Exception as e:
-            logging.error(f"Error handling connection from {addr}: {e}")
-        finally:
-            writer.close()
-            await writer.wait_closed()
-            await self.data_manager.disconnect_gps(imei)
-            logging.info(f"Connection closed for {addr}")
+        logging.info(f"Data field length: {data_field_length}, Codec: {codec}, Number of data: {number_of_data}")
 
-    async def handle_authentication(self, reader, writer):
-        logging.info("Waiting for device authentication...")
-        imei_data = await reader.read(17)  # IMEI is typically 15 digits, plus 2 bytes for length
-        if len(imei_data) < 2:
-            logging.warning("Authentication failed: insufficient data received")
-            writer.write(b'\x00')
-            await writer.drain()
-            return None
+        avl_data = self.payload[20:-4]  # Exclude CRC at the end
+        records = []
 
-        imei_length = imei_data[0]
-        imei = imei_data[1:1+imei_length].decode()
-        logging.info(f"Device authenticated | IMEI: {imei}")
-        writer.write(b'\x01')
-        await writer.drain()
-        return imei
+        position = 0
+        for _ in range(number_of_data):
+            if len(avl_data) - position < 64:  # Minimum length for a single record
+                logging.warning("Insufficient data for record")
+                break
 
-    async def handle_gps_data(self, imei, reader, writer):
-        logging.info("Waiting for GPS data...")
-        header = await reader.read(8)
-        if len(header) != 8:
-            logging.warning("Invalid GPS data header")
-            return
+            timestamp = int(avl_data[position:position+16], 16)
+            position += 16
 
-        data_length = struct.unpack(">I", header[4:])[0]
-        data = await reader.read(data_length)
-        
-        if len(data) != data_length:
-            logging.warning(f"Incomplete GPS data received. Expected {data_length}, got {len(data)}")
-            return
+            priority = int(avl_data[position:position+2], 16)
+            position += 2
 
-        hex_data = binascii.hexlify(header + data).decode()
-        logging.debug(f"Received GPS data: {hex_data}")
+            longitude = int(avl_data[position:position+8], 16) / self.precision
+            position += 8
 
-        decoder = Decoder(payload=hex_data, imei=imei)
-        records = decoder.decode_data()
+            latitude = int(avl_data[position:position+8], 16) / self.precision
+            position += 8
 
-        if records:
-            await self.data_manager.store_gps_data(imei, records)
-            self.display_records(records)
-            response = struct.pack(">I", len(records))
-            writer.write(response)
-            await writer.drain()
-            logging.info(f"Processed {len(records)} records from IMEI: {imei}")
-        else:
-            logging.warning("No valid records decoded from the GPS data")
-            writer.write(struct.pack(">I", 0))
-            await writer.drain()
+            altitude = int(avl_data[position:position+4], 16)
+            position += 4
 
-    def display_records(self, records):
-        for i, record in enumerate(records, 1):
-            print(f"\n--- GPS Record {i} ---")
-            print(record)
-            print("------------------")
+            angle = int(avl_data[position:position+4], 16)
+            position += 4
+
+            satellites = int(avl_data[position:position+2], 16)
+            position += 2
+
+            speed = int(avl_data[position:position+4], 16)
+            position += 4
+
+            event_io_id = int(avl_data[position:position+2], 16)
+            position += 2
+
+            total_io = int(avl_data[position:position+2], 16)
+            position += 2
+
+            io_data = {}
+            for bit_size in [1, 2, 4, 8]:
+                num_elements = int(avl_data[position:position+2], 16)
+                position += 2
+                for _ in range(num_elements):
+                    if len(avl_data) - position < 2 + (2 * bit_size):
+                        logging.warning("Insufficient data for IO element")
+                        break
+                    io_id = int(avl_data[position:position+2], 16)
+                    position += 2
+                    io_value = int(avl_data[position:position + 2 * bit_size], 16)
+                    position += 2 * bit_size
+                    io_data[io_id] = io_value
+
+            record = {
+                "IMEI": self.imei,
+                "DateTime": datetime.utcfromtimestamp(timestamp // 1000).isoformat(),
+                "Priority": priority,
+                "GPS Data": {
+                    "Longitude": longitude,
+                    "Latitude": latitude,
+                    "Altitude": altitude,
+                    "Angle": angle,
+                    "Satellites": satellites,
+                    "Speed": speed,
+                },
+                "Event IO ID": event_io_id,
+                "Total IO Elements": total_io,
+                "IO Data": io_data
+            }
+            records.append(record)
+            logging.info(f"Decoded record: {record}")
+
+        if len(records) != number_of_data:
+            logging.warning(f"Number of decoded records ({len(records)}) does not match expected number ({number_of_data})")
+
+        return records
