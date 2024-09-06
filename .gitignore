@@ -1,0 +1,63 @@
+# Archivos compilados por Python
+server/__pycache__/
+server/config/__pycache__/
+server/src/api/__pycache__/
+server/src/utils/__pycache__/
+server/src/__pycache__/
+server/*.py[cod]
+server/*$py.class
+
+# Archivos de entorno virtual
+server/venv/
+server/env/
+server/ENV/
+server/.venv/
+server/.pyenv/
+server/pip-log.txt
+server/pip-delete-this-directory.txt
+
+# Archivos relacionados con distribuciones y empaquetado
+server/build/
+server/dist/
+server/*.egg-info/
+server/.eggs/
+
+# Archivos de configuración de IDEs
+server/.idea/
+server/.vscode/
+server/*.swp
+
+# Archivos de logs
+server/*.log
+
+# Archivos de bases de datos locales o cachés
+server/*.sqlite3
+server/*.db
+
+# Carpetas con dependencias o paquetes descargados
+server/.Python
+server/lib/
+server/lib64/
+server/parts/
+server/sdist/
+server/wheels/
+
+# Configuración y archivos de caché
+server/*.mypy_cache/
+server/*.coverage
+server/.coverage.*
+
+# Archivos creados por pytest
+server/.cache/
+server/.pytest_cache/
+
+# Archivos de Docker
+server/Dockerfile
+server/docker-compose.yml
+
+# Archivos de Jupyter Notebooks
+server/.ipynb_checkpoints/
+
+# Otros
+server/*.DS_Store
+server/*.env
