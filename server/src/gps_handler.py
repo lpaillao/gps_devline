@@ -2,6 +2,7 @@ import asyncio
 import binascii
 from src.utils.decoder import Decoder
 import logging
+import struct
 
 class GPSHandler:
     def __init__(self, data_manager):
@@ -31,39 +32,46 @@ class GPSHandler:
             logging.info(f"Connection closed for {addr}")
 
     async def authenticate(self, reader, writer):
-        writer.write(b'\x01')
-        await writer.drain()
-        imei_data = await reader.read(1024)
-        imei = binascii.hexlify(imei_data).decode()
+        auth_data = await reader.read(1024)
+        imei = binascii.hexlify(auth_data).decode()
+        logging.debug(f"Received authentication data: {imei}")
         if len(imei) > 2:
             logging.info(f"Device authenticated | IMEI: {imei}")
+            writer.write(b'\x01')
+            await writer.drain()
             return imei
+        writer.write(b'\x00')
+        await writer.drain()
         return None
 
     async def process_gps_data(self, imei, reader, writer):
         while True:
-            data = await reader.read(1024)
-            if not data:
+            try:
+                data = await reader.read(1024)
+                if not data:
+                    break
+                hex_data = binascii.hexlify(data).decode()
+                logging.debug(f"Received GPS data: {hex_data}")
+                
+                decoder = Decoder(payload=hex_data, imei=imei)
+                records = decoder.decode_data()
+                if records:
+                    await self.data_manager.store_gps_data(imei, records)
+                    self.display_records(records)
+                    response = struct.pack("!L", len(records))
+                    writer.write(response)
+                    await writer.drain()
+                    logging.info(f"Processed {len(records)} records from IMEI: {imei}")
+                else:
+                    logging.warning("No valid records decoded from the GPS data")
+                    writer.write(b'\x00')
+                    await writer.drain()
+            except Exception as e:
+                logging.error(f"Error processing GPS data: {e}")
                 break
-            hex_data = binascii.hexlify(data).decode()
-            logging.debug(f"Received data: {hex_data}")
-            
-            decoder = Decoder(payload=hex_data, imei=imei)
-            records = decoder.decode_data()
-            if records:
-                await self.data_manager.store_gps_data(imei, records)
-                self.display_records(records)
-                response = len(records).to_bytes(4, byteorder='big')
-                writer.write(response)
-                await writer.drain()
-                logging.info(f"Processed {len(records)} records from IMEI: {imei}")
-            else:
-                logging.warning("No valid records decoded from the GPS data")
-                writer.write(b'\x00')
-                await writer.drain()
 
     def display_records(self, records):
         for i, record in enumerate(records, 1):
-            logging.info(f"\n--- GPS Record {i} ---")
-            logging.info(f"{record}")
-            logging.info("------------------")
+            print(f"\n--- GPS Record {i} ---")
+            print(record)
+            print("------------------")

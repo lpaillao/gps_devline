@@ -10,20 +10,28 @@ class Decoder:
     def decode_data(self):
         logging.debug(f"Raw payload: {self.payload}")
 
+        if len(self.payload) < 36:  # Minimum length for a valid payload
+            logging.warning("Payload too short")
+            return []
+
         number_of_rec = int(self.payload[18:20], 16)
-        number_of_rec_end = int(self.payload[len(self.payload)-10:-8], 16)
+        number_of_rec_end = int(self.payload[-4:-2], 16)
         logging.info(f"Number of records: {number_of_rec}, End number: {number_of_rec_end}")
 
-        avl_data = self.payload[20:-10]
+        avl_data = self.payload[20:-4]
         logging.debug(f"AVL data: {avl_data}")
 
         records = []
         if number_of_rec == number_of_rec_end:
             position = 0
             for _ in range(number_of_rec):
+                if len(avl_data) - position < 64:  # Minimum length for a single record
+                    logging.warning("Insufficient data for record")
+                    break
+
                 timestamp_hex = avl_data[position:position+16]
                 timestamp_int = int(timestamp_hex, 16)
-                timestamp = datetime.utcfromtimestamp(timestamp_int/1e3)
+                timestamp = datetime.utcfromtimestamp(timestamp_int/1000)
                 position += 16
 
                 priority = int(avl_data[position:position+2], 16)
@@ -36,7 +44,7 @@ class Decoder:
                 position += 8
 
                 altitude = int(avl_data[position:position+4], 16)
-                position += 8  # Skip the second altitude value
+                position += 4
 
                 angle = int(avl_data[position:position+4], 16)
                 position += 4
@@ -47,22 +55,25 @@ class Decoder:
                 speed = int(avl_data[position:position+4], 16)
                 position += 4
 
-                io_event_code = int(avl_data[position:position + 2], 16)
+                event_io_id = int(avl_data[position:position+2], 16)
                 position += 2
 
-                number_of_io_elements = int(avl_data[position:position + 2], 16)
+                total_io = int(avl_data[position:position+2], 16)
                 position += 2
 
                 io_data = {}
                 for bit_size in [1, 2, 4, 8]:
-                    num_elements = int(avl_data[position:position + 2], 16)
+                    num_elements = int(avl_data[position:position+2], 16)
                     position += 2
                     for _ in range(num_elements):
-                        io_code = int(avl_data[position:position + 2], 16)
+                        if len(avl_data) - position < 2 + (2 * bit_size):
+                            logging.warning("Insufficient data for IO element")
+                            break
+                        io_id = int(avl_data[position:position+2], 16)
                         position += 2
-                        io_val = int(avl_data[position:position + 2 * bit_size], 16)
+                        io_value = int(avl_data[position:position + 2 * bit_size], 16)
                         position += 2 * bit_size
-                        io_data[io_code] = io_val
+                        io_data[io_id] = io_value
 
                 record = {
                     "IMEI": self.imei,
@@ -76,9 +87,9 @@ class Decoder:
                         "Satellites": satellites,
                         "Speed": speed,
                     },
-                    "I/O Event Code": io_event_code,
-                    "Number of I/O Elements": number_of_io_elements,
-                    "I/O Data": io_data
+                    "Event IO ID": event_io_id,
+                    "Total IO Elements": total_io,
+                    "IO Data": io_data
                 }
                 records.append(record)
                 logging.info(f"Decoded record: {record}")
