@@ -17,3 +17,11 @@ Para ejecutar el servidor:
 python src/main.py
 ```
 
+wget -qO - https://www.mongodb.org/static/pgp/server-6.0.asc | sudo tee /etc/apt/trusted.gpg.d/mongodb-server-6.0.asc
+sudo apt update
+sudo apt install -y mongodb-org
+
+
+sudo apt install -y mongodb
+sudo systemctl start mongodb
+sudo systemctl enable mongodb

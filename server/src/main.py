@@ -12,6 +12,15 @@ from src.gps_handler import GPSHandler
 from src.data_manager import DataManager
 from src.api.routes import setup_routes
 from config.settings import MONGODB_URL, GPS_PORT, API_PORT
+import logging
+
+# Configuración de logging
+logging.basicConfig(level=logging.DEBUG,
+                    format='%(asctime)s - %(levelname)s - %(message)s',
+                    handlers=[
+                        logging.FileHandler("gps_server.log"),
+                        logging.StreamHandler(sys.stdout)
+                    ])
 
 app = FastAPI()
 
@@ -19,7 +28,7 @@ async def start_gps_server(gps_handler):
     server = await asyncio.start_server(
         gps_handler.handle_connection, '0.0.0.0', GPS_PORT
     )
-    print(f"GPS server running on port {GPS_PORT}")
+    logging.info(f"GPS server running on port {GPS_PORT}")
     async with server:
         await server.serve_forever()
 
@@ -50,4 +59,6 @@ async def main():
         await client.close()
 
 if __name__ == '__main__':
+    logging.info("Starting GPS Server...")
+    logging.info("Press Ctrl+C to stop the server")
     asyncio.run(main())
