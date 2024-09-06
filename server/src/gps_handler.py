@@ -64,7 +64,7 @@ class GPSHandler:
                     logging.info(f"Processed {len(records)} records from IMEI: {imei}")
                 else:
                     logging.warning("No valid records decoded from the GPS data")
-                    writer.write(b'\x00')
+                    writer.write(struct.pack("!L", 0))  # Send 0 as response
                     await writer.drain()
             except Exception as e:
                 logging.error(f"Error processing GPS data: {e}")
