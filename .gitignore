@@ -63,3 +63,5 @@ server/*.DS_Store
 server/*.env
 
 server2/__pycache__/
+server2/gps_server.log
+server2/gps_data/gps.db

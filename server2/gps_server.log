@@ -5,3 +5,5 @@
  * Running on http://127.0.0.1:5000
  * Running on http://172.20.113.124:5000
 2024-09-06 23:15:11,586 - INFO - [33mPress CTRL+C to quit[0m
+2024-09-06 23:16:50,402 - INFO - Server stopped by user
+2024-09-06 23:16:50,403 - INFO - Server shut down
