@@ -35,4 +35,5 @@ class AlertSystem:
 
     def _calculate_distance(self, lat1, lon1, lat2, lon2):
         # Implement distance calculation here (e.g., using Haversine formula)
-        pass
+        # For now, we'll return a dummy value
+        return 0  # This should be replaced with actual distance calculation

@@ -172,3 +172,30 @@ class Database:
     def get_stop_count(self, imei, start_time, end_time, stop_duration=300):  # stop_duration in seconds
         # Implement logic to count stops (periods of no movement longer than stop_duration)
         pass
+    def get_all_latest_gps_data(self):
+        conn = sqlite3.connect(self.db_file)
+        cursor = conn.cursor()
+        cursor.execute('''
+            SELECT t1.*
+            FROM gps_data t1
+            INNER JOIN (
+                SELECT imei, MAX(timestamp) as max_timestamp
+                FROM gps_data
+                GROUP BY imei
+            ) t2 ON t1.imei = t2.imei AND t1.timestamp = t2.max_timestamp
+        ''')
+        results = cursor.fetchall()
+        conn.close()
+        
+        return [{
+            'imei': r[1],
+            'timestamp': r[2],
+            'latitude': r[3],
+            'longitude': r[4],
+            'altitude': r[5],
+            'angle': r[6],
+            'satellites': r[7],
+            'speed': r[8],
+            'priority': r[9],
+            'io_data': r[10]
+        } for r in results]

@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GPS Live Tracker</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 0; padding: 20px; }
+        #gps-data { margin-bottom: 20px; }
+        #speed-chart { width: 100%; max-width: 600px; }
+    </style>
+</head>
+<body>
+    <h1>GPS Live Tracker</h1>
+    <input type="text" id="imei-input" placeholder="Enter IMEI">
+    <button onclick="startTracking()">Start Tracking</button>
+    <div id="gps-data"></div>
+    <canvas id="speed-chart"></canvas>
+
+    <script>
+        const socket = io('http://167.71.106.231:5000');
+        let speedChart;
+        let speedData = [];
+
+        socket.on('connect', () => {
+            console.log('Connected to server');
+        });
+
+        socket.on('gps_update', (data) => {
+            updateGPSData(data);
+            updateSpeedChart(data.speed);
+        });
+
+        function startTracking() {
+            const imei = document.getElementById('imei-input').value;
+            if (imei) {
+                socket.emit('start_tracking', { imei: imei });
+                console.log(`Started tracking IMEI: ${imei}`);
+            } else {
+                alert('Please enter an IMEI');
+            }
+        }
+
+        function updateGPSData(data) {
+            const gpsDataElement = document.getElementById('gps-data');
+            gpsDataElement.innerHTML = `
+                <h2>GPS Data for IMEI: ${data.imei}</h2>
+                <p>Timestamp: ${new Date(data.timestamp).toLocaleString()}</p>
+                <p>Latitude: ${data.latitude}</p>
+                <p>Longitude: ${data.longitude}</p>
+                <p>Speed: ${data.speed} km/h</p>
+                <p>Altitude: ${data.altitude} m</p>
+            `;
+        }
+
+        function updateSpeedChart(speed) {
+            const ctx = document.getElementById('speed-chart').getContext('2d');
+            
+            if (!speedChart) {
+                speedChart = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: [],
+                        datasets: [{
+                            label: 'Speed (km/h)',
+                            data: [],
+                            borderColor: 'rgb(75, 192, 192)',
+                            tension: 0.1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        scales: {
+                            y: {
+                                beginAtZero: true
+                            }
+                        }
+                    }
+                });
+            }
+
+            const now = new Date();
+            speedData.push({x: now, y: speed});
+
+            // Keep only the last 20 data points
+            if (speedData.length > 20) {
+                speedData.shift();
+            }
+
+            speedChart.data.labels = speedData.map(d => d.x.toLocaleTimeString());
+            speedChart.data.datasets[0].data = speedData.map(d => d.y);
+            speedChart.update();
+        }
+    </script>
+</body>
+</html>
