@@ -1,3 +1,7 @@
+server2/gps_server.log
+server2/__pycache__/
+server2/gps_data/*
+server2/gps_data/gps.db
 # Archivos compilados por Python
 server/__pycache__/
 server/config/__pycache__/
@@ -62,6 +66,3 @@ server/.ipynb_checkpoints/
 server/*.DS_Store
 server/*.env
 
-server2/__pycache__/
-server2/gps_server.log
-server2/gps_data/gps.db
