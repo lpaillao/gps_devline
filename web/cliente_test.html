@@ -16,13 +16,15 @@
     <h1>GPS Live Tracker</h1>
     <input type="text" id="imei-input" placeholder="Enter IMEI">
     <button onclick="startTracking()">Start Tracking</button>
+    <button onclick="stopTracking()">Stop Tracking</button>
     <div id="gps-data"></div>
     <canvas id="speed-chart"></canvas>
 
     <script>
-        const socket = io('http://167.71.106.231:5000');
+        const socket = io('http://your-server-ip:5000');
         let speedChart;
         let speedData = [];
+        let currentImei = null;
 
         socket.on('connect', () => {
             console.log('Connected to server');
@@ -33,13 +35,41 @@
             updateSpeedChart(data.speed);
         });
 
+        socket.on('tracking_status', (data) => {
+            console.log(`Tracking status for IMEI ${data.imei}: ${data.status}`);
+        });
+
+        socket.on('room_join', (data) => {
+            console.log(`Joined room for IMEI ${data.imei}`);
+        });
+
+        socket.on('room_leave', (data) => {
+            console.log(`Left room for IMEI ${data.imei}`);
+        });
+
         function startTracking() {
             const imei = document.getElementById('imei-input').value;
             if (imei) {
+                if (currentImei) {
+                    socket.emit('leave', { imei: currentImei });
+                }
+                currentImei = imei;
+                socket.emit('join', { imei: imei });
                 socket.emit('start_tracking', { imei: imei });
                 console.log(`Started tracking IMEI: ${imei}`);
             } else {
                 alert('Please enter an IMEI');
+            }
+        }
+
+        function stopTracking() {
+            if (currentImei) {
+                socket.emit('stop_tracking', { imei: currentImei });
+                socket.emit('leave', { imei: currentImei });
+                console.log(`Stopped tracking IMEI: ${currentImei}`);
+                currentImei = null;
+            } else {
+                alert('No active tracking session');
             }
         }
 

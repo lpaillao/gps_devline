@@ -14,6 +14,9 @@ db = Database(os.path.join(DATA_DIR, 'gps.db'))
 from alerts import AlertSystem
 alert_system = AlertSystem(socketio)
 
+# Dictionary to store active tracking sessions
+active_tracking = {}
+
 @app.route('/gps/count', methods=['GET'])
 def get_online_gps_count():
     count = db.get_online_gps_count()
@@ -39,17 +42,39 @@ def home():
 def track_gps(imei):
     return jsonify({"message": f"Tracking IMEI: {imei}", "status": "success"})
 
+def send_updates(imei):
+    while imei in active_tracking:
+        latest_data = db.get_latest_gps_data(imei)
+        if latest_data:
+            socketio.emit('gps_update', latest_data, room=imei)
+        socketio.sleep(5)  # Send updates every 5 seconds
+
 @socketio.on('start_tracking')
 def handle_tracking(data):
     imei = data['imei']
-    def send_updates():
-        while True:
-            latest_data = db.get_latest_gps_data(imei)
-            if latest_data:
-                emit('gps_update', latest_data, room=request.sid)
-            socketio.sleep(5)  # Send updates every 5 seconds
+    if imei not in active_tracking:
+        active_tracking[imei] = True
+        threading.Thread(target=send_updates, args=(imei,)).start()
+    socketio.emit('tracking_status', {'status': 'started', 'imei': imei}, room=request.sid)
 
-    threading.Thread(target=send_updates).start()
+@socketio.on('stop_tracking')
+def handle_stop_tracking(data):
+    imei = data['imei']
+    if imei in active_tracking:
+        del active_tracking[imei]
+    socketio.emit('tracking_status', {'status': 'stopped', 'imei': imei}, room=request.sid)
+
+@socketio.on('join')
+def on_join(data):
+    imei = data['imei']
+    socketio.join_room(imei)
+    socketio.emit('room_join', {'status': 'joined', 'imei': imei}, room=request.sid)
+
+@socketio.on('leave')
+def on_leave(data):
+    imei = data['imei']
+    socketio.leave_room(imei)
+    socketio.emit('room_leave', {'status': 'left', 'imei': imei}, room=request.sid)
 
 @app.route('/gps/<imei>/history', methods=['GET'])
 def get_route_history(imei):
