@@ -23,5 +23,9 @@ def get_latest_gps_data(imei):
         return jsonify(data)
     return jsonify({'error': 'No data found for this IMEI'}), 404
 
+@app.route('/', methods=['GET'])
+def home():
+    return "GPS Server API is running!"
+
 def start_api():
-    app.run(host='0.0.0.0', port=5000)
+    app.run(host='0.0.0.0', port=5000, debug=False, threaded=True)
