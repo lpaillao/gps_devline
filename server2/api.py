@@ -1,5 +1,5 @@
 from flask import Flask, jsonify, request
-from flask_socketio import SocketIO, emit
+from flask_socketio import SocketIO, emit, join_room, leave_room
 from database import Database
 from config import DATA_DIR
 import os
@@ -55,26 +55,26 @@ def handle_tracking(data):
     if imei not in active_tracking:
         active_tracking[imei] = True
         threading.Thread(target=send_updates, args=(imei,)).start()
-    socketio.emit('tracking_status', {'status': 'started', 'imei': imei}, room=request.sid)
+    emit('tracking_status', {'status': 'started', 'imei': imei})
 
 @socketio.on('stop_tracking')
 def handle_stop_tracking(data):
     imei = data['imei']
     if imei in active_tracking:
         del active_tracking[imei]
-    socketio.emit('tracking_status', {'status': 'stopped', 'imei': imei}, room=request.sid)
+    emit('tracking_status', {'status': 'stopped', 'imei': imei})
 
 @socketio.on('join')
 def on_join(data):
     imei = data['imei']
-    socketio.join_room(imei)
-    socketio.emit('room_join', {'status': 'joined', 'imei': imei}, room=request.sid)
+    join_room(imei)
+    emit('room_join', {'status': 'joined', 'imei': imei})
 
 @socketio.on('leave')
 def on_leave(data):
     imei = data['imei']
-    socketio.leave_room(imei)
-    socketio.emit('room_leave', {'status': 'left', 'imei': imei}, room=request.sid)
+    leave_room(imei)
+    emit('room_leave', {'status': 'left', 'imei': imei})
 
 @app.route('/gps/<imei>/history', methods=['GET'])
 def get_route_history(imei):
