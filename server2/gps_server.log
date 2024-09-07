@@ -1,0 +1,7 @@
+2024-09-06 23:15:11,576 - INFO - Starting GPS Server and API...
+2024-09-06 23:15:11,579 - INFO - Server started successfully on 0.0.0.0:6006
+2024-09-06 23:15:11,585 - INFO - [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5000
+ * Running on http://172.20.113.124:5000
+2024-09-06 23:15:11,586 - INFO - [33mPress CTRL+C to quit[0m

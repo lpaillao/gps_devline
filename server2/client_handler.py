@@ -5,6 +5,7 @@ import logging
 from decoder import Decoder
 from data_manager import DataManager
 from utils import format_gps_data, format_io_data
+from gps_manager import GPSManager
 
 class ClientHandler(Thread):
     def __init__(self, conn, addr):
@@ -13,15 +14,18 @@ class ClientHandler(Thread):
         self.addr = addr
         self.imei = "unknown"
         self.data_manager = DataManager()
+        self.gps_manager = GPSManager()
 
     def run(self):
         logging.info(f"New connection from {self.addr}")
         try:
             self.handle_authentication()
+            self.gps_manager.connect(self.imei)
             self.handle_data()
         except Exception as e:
             logging.error(f"Error handling client {self.addr}: {e}")
         finally:
+            self.gps_manager.disconnect(self.imei)
             self.conn.close()
             logging.info(f"Connection closed for {self.addr}")
 
