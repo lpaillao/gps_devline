@@ -1,6 +1,6 @@
 import sqlite3
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta
 
 class Database:
     def __init__(self, db_file):
@@ -32,8 +32,35 @@ class Database:
                 is_online BOOLEAN
             )
         ''')
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS geofences (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT,
+                latitude REAL,
+                longitude REAL,
+                radius REAL
+            )
+        ''')
         conn.commit()
         conn.close()
+
+    def add_geofence(self, name, latitude, longitude, radius):
+        conn = sqlite3.connect(self.db_file)
+        cursor = conn.cursor()
+        cursor.execute('''
+            INSERT INTO geofences (name, latitude, longitude, radius)
+            VALUES (?, ?, ?, ?)
+        ''', (name, latitude, longitude, radius))
+        conn.commit()
+        conn.close()
+
+    def get_geofences(self):
+        conn = sqlite3.connect(self.db_file)
+        cursor = conn.cursor()
+        cursor.execute('SELECT * FROM geofences')
+        results = cursor.fetchall()
+        conn.close()
+        return [{'id': r[0], 'name': r[1], 'latitude': r[2], 'longitude': r[3], 'radius': r[4]} for r in results]
 
     def insert_gps_data(self, data):
         conn = sqlite3.connect(self.db_file)
@@ -113,3 +140,35 @@ class Database:
                 'io_data': result[10]
             }
         return None
+    def get_route_history(self, imei, start_time, end_time):
+        conn = sqlite3.connect(self.db_file)
+        cursor = conn.cursor()
+        cursor.execute('''
+            SELECT timestamp, latitude, longitude, speed
+            FROM gps_data
+            WHERE imei = ? AND timestamp BETWEEN ? AND ?
+            ORDER BY timestamp
+        ''', (imei, start_time, end_time))
+        results = cursor.fetchall()
+        conn.close()
+        return [{'timestamp': r[0], 'latitude': r[1], 'longitude': r[2], 'speed': r[3]} for r in results]
+    
+    def get_distance_traveled(self, imei, start_time, end_time):
+        # Implement distance calculation based on GPS coordinates
+        pass
+
+    def get_time_in_motion(self, imei, start_time, end_time):
+        conn = sqlite3.connect(self.db_file)
+        cursor = conn.cursor()
+        cursor.execute('''
+            SELECT COUNT(*) * 5 / 60.0  -- Assuming data points every 5 seconds, convert to hours
+            FROM gps_data
+            WHERE imei = ? AND timestamp BETWEEN ? AND ? AND speed > 0
+        ''', (imei, start_time, end_time))
+        result = cursor.fetchone()[0]
+        conn.close()
+        return result
+
+    def get_stop_count(self, imei, start_time, end_time, stop_duration=300):  # stop_duration in seconds
+        # Implement logic to count stops (periods of no movement longer than stop_duration)
+        pass
