@@ -2,7 +2,7 @@ import sqlite3
 import logging
 from datetime import datetime, timedelta
 
-class BaseDatos:
+class Database:
     def __init__(self, archivo_db):
         self.archivo_db = archivo_db
         self.crear_tablas()
