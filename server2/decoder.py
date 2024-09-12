@@ -1,8 +1,8 @@
-# decodificador.py
+# Decoder.py
 from datetime import datetime
 import logging
 
-class Decodificador:
+class Decoder:
     def __init__(self, carga_util, imei):
         self.carga_util = carga_util
         self.imei = imei
