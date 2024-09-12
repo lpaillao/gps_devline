@@ -1,3 +1,5 @@
+
+# server2/client_handler.py
 from threading import Thread
 import binascii
 import struct
@@ -12,42 +14,42 @@ class ClientHandler(Thread):
         Thread.__init__(self)
         self.conn = conn
         self.addr = addr
-        self.imei = "unknown"
+        self.imei = "desconocido"
         self.data_manager = DataManager()
         self.gps_manager = GPSManager()
 
     def run(self):
-        logging.info(f"New connection from {self.addr}")
+        logging.info(f"Nueva conexión desde {self.addr}")
         try:
             self.handle_authentication()
             self.gps_manager.connect(self.imei)
             self.handle_data()
         except Exception as e:
-            logging.error(f"Error handling client {self.addr}: {e}")
+            logging.error(f"Error al manejar el cliente {self.addr}: {e}")
         finally:
             self.gps_manager.disconnect(self.imei)
             self.conn.close()
-            logging.info(f"Connection closed for {self.addr}")
+            logging.info(f"Conexión cerrada para {self.addr}")
 
     def handle_authentication(self):
-        logging.info("Waiting for device authentication...")
+        logging.info("Esperando autenticación del dispositivo...")
         buff = self.conn.recv(8192)
         received = binascii.hexlify(buff)
-        logging.debug(f"Received authentication data: {received}")
+        logging.debug(f"Datos de autenticación recibidos: {received}")
         if len(received) > 2:
             self.imei = received.decode()
-            logging.info(f"Device authenticated | IMEI: {self.imei}")
+            logging.info(f"Dispositivo autenticado | IMEI: {self.imei}")
             self.conn.send(b'\x01')
         else:
-            logging.warning("Authentication failed: insufficient data received")
+            logging.warning("Autenticación fallida: datos insuficientes recibidos")
             self.conn.send(b'\x00')
-            raise Exception("Authentication failed")
+            raise Exception("Autenticación fallida")
 
     def handle_data(self):
-        logging.info("Waiting for GPS data...")
+        logging.info("Esperando datos GPS...")
         buff = self.conn.recv(8192)
         received = binascii.hexlify(buff)
-        logging.debug(f"Received GPS data: {received}")
+        logging.debug(f"Datos GPS recibidos: {received}")
         if len(received) > 2:
             decoder = Decoder(payload=received, imei=self.imei)
             records = decoder.decode_data()
@@ -55,26 +57,26 @@ class ClientHandler(Thread):
                 self.data_manager.save_data(self.imei, records)
                 self.display_records(records)
                 self.conn.send(struct.pack("!L", len(records)))
-                logging.info(f"Processed {len(records)} records from IMEI: {self.imei}")
+                logging.info(f"Procesados {len(records)} registros del IMEI: {self.imei}")
             else:
-                logging.warning("No valid records decoded from the GPS data")
+                logging.warning("No se decodificaron registros válidos de los datos GPS")
                 self.conn.send(b'\x00')
         else:
-            logging.warning("No valid GPS data received")
+            logging.warning("No se recibieron datos GPS válidos")
             self.conn.send(b'\x00')
 
     def display_records(self, records):
         for i, record in enumerate(records, 1):
             print(f"\n{'='*40}")
-            print(f"GPS Record {i} - IMEI: {record['IMEI']}")
+            print(f"Registro GPS {i} - IMEI: {record['IMEI']}")
             print(f"{'='*40}")
-            print(f"Timestamp: {record['DateTime']}")
-            print(f"Priority: {record['Priority']}")
+            print(f"Marca de tiempo: {record['DateTime']}")
+            print(f"Prioridad: {record['Priority']}")
             
-            print("\nGPS Data:")
+            print("\nDatos GPS:")
             print(format_gps_data(record['GPS Data']))
             
-            print("\nI/O Data:")
+            print("\nDatos de E/S:")
             print(format_io_data(record['I/O Data']))
             
             print(f"{'='*40}\n")

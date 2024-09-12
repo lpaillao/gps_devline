@@ -1,3 +1,4 @@
+# server2/server.py
 import socket
 from client_handler import ClientHandler
 from config import HOST, PORT
@@ -6,7 +7,7 @@ import logging
 
 def start_server():
     if is_port_in_use(PORT):
-        logging.error(f"Port {PORT} is already in use. Please choose a different port.")
+        logging.error(f"El puerto {PORT} ya está en uso. Por favor, elija un puerto diferente.")
         return
 
     server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -14,17 +15,17 @@ def start_server():
     try:
         server.bind((HOST, PORT))
         server.listen(5)
-        logging.info(f"Server started successfully on {HOST}:{PORT}")
-        print(f"Server is running on {HOST}:{PORT}")
-        print("Waiting for GPS connections...")
+        logging.info(f"Servidor iniciado exitosamente en {HOST}:{PORT}")
+        print(f"El servidor está funcionando en {HOST}:{PORT}")
+        print("Esperando conexiones GPS...")
 
         while True:
             conn, addr = server.accept()
             ClientHandler(conn, addr).start()
     except socket.error as e:
-        logging.error(f"Socket error: {e}")
+        logging.error(f"Error de socket: {e}")
     except KeyboardInterrupt:
-        logging.info("Server stopped by user")
+        logging.info("Servidor detenido por el usuario")
     finally:
         server.close()
-        logging.info("Server shut down")
+        logging.info("Servidor apagado")

@@ -1,3 +1,4 @@
+# server2/data_manager.py
 import logging
 from database import Database
 from config import DB_FILE
@@ -10,6 +11,6 @@ class DataManager:
         try:
             for record in records:
                 self.db.insert_gps_data(record)
-            logging.info(f"Saved {len(records)} records for IMEI {imei}")
+            logging.info(f"Se guardaron {len(records)} registros para el IMEI {imei}")
         except Exception as e:
-            logging.error(f"Failed to save data for IMEI {imei}: {e}")
+            logging.error(f"Error al guardar datos para el IMEI {imei}: {e}")

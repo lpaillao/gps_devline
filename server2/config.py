@@ -1,3 +1,4 @@
+# server2/config.py
 import logging
 import sys
 import os
@@ -11,6 +12,6 @@ def setup_logging():
     logging.basicConfig(level=logging.DEBUG,
                         format='%(asctime)s - %(levelname)s - %(message)s',
                         handlers=[
-                            logging.FileHandler("gps_server.log"),
+                            logging.FileHandler("servidor_gps.log"),
                             logging.StreamHandler(sys.stdout)
                         ])
