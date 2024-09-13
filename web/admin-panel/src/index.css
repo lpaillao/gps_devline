@@ -1,0 +1,15 @@
+@import 'tailwindcss/base';
+@import 'tailwindcss/components';
+@import 'tailwindcss/utilities';
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+body {
+  @apply font-sans antialiased text-neutral-900 bg-neutral-100 dark:text-neutral-100 dark:bg-neutral-900;
+}
+
+.transition-colors {
+  @apply transition-all duration-200;
+}
+
+/* Puedes eliminar los estilos de App-logo, App-header, etc., si ya no los necesitas */
