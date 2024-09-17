@@ -2,12 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { useTheme } from '../../contexts/ThemeContext';
 
 const UserForm = ({ user, onSubmit, onCancel }) => {
-  const [formData, setFormData] = useState({ name: '', email: '', role: 'User' });
+  const [formData, setFormData] = useState({ username: '', email: '', password: '', role_id: '2' });
   const { text, bg } = useTheme();
 
   useEffect(() => {
     if (user) {
-      setFormData(user);
+      setFormData({ ...user, password: '' });
+    } else {
+      setFormData({ username: '', email: '', password: '', role_id: '2' });
     }
   }, [user]);
 
@@ -27,12 +29,12 @@ const UserForm = ({ user, onSubmit, onCancel }) => {
       </h2>
       <div className="space-y-4">
         <div>
-          <label htmlFor="name" className={`block ${text.secondary} mb-1`}>Name</label>
+          <label htmlFor="username" className={`block ${text.secondary} mb-1`}>Username</label>
           <input
             type="text"
-            id="name"
-            name="name"
-            value={formData.name}
+            id="username"
+            name="username"
+            value={formData.username}
             onChange={handleChange}
             className={`w-full px-3 py-2 rounded-lg ${bg.primary} ${text.primary} border border-gray-300`}
             required
@@ -50,17 +52,31 @@ const UserForm = ({ user, onSubmit, onCancel }) => {
             required
           />
         </div>
+        {!user && (
+          <div>
+            <label htmlFor="password" className={`block ${text.secondary} mb-1`}>Password</label>
+            <input
+              type="password"
+              id="password"
+              name="password"
+              value={formData.password}
+              onChange={handleChange}
+              className={`w-full px-3 py-2 rounded-lg ${bg.primary} ${text.primary} border border-gray-300`}
+              required={!user}
+            />
+          </div>
+        )}
         <div>
-          <label htmlFor="role" className={`block ${text.secondary} mb-1`}>Role</label>
+          <label htmlFor="role_id" className={`block ${text.secondary} mb-1`}>Role</label>
           <select
-            id="role"
-            name="role"
-            value={formData.role}
+            id="role_id"
+            name="role_id"
+            value={formData.role_id}
             onChange={handleChange}
             className={`w-full px-3 py-2 rounded-lg ${bg.primary} ${text.primary} border border-gray-300`}
           >
-            <option value="User">User</option>
-            <option value="Admin">Admin</option>
+            <option value="2">User</option>
+            <option value="1">Admin</option>
           </select>
         </div>
       </div>
