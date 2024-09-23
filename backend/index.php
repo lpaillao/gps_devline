@@ -21,6 +21,11 @@ require_once __DIR__ . '/src/controllers/UserController.php';
 require_once __DIR__ . '/src/controllers/MenuController.php';
 require_once __DIR__ . '/src/controllers/RoleController.php';
 require_once __DIR__ . '/src/controllers/RoleMenuController.php';
+require_once __DIR__ . '/src/controllers/EmpresaController.php';
+require_once __DIR__ . '/src/controllers/DispositivoGPSController.php';
+require_once __DIR__ . '/src/controllers/UbicacionController.php';
+require_once __DIR__ . '/src/controllers/AsignacionDispositivoController.php';
+require_once __DIR__ . '/src/controllers/TipoGPSController.php';
 
 try {
     $database = new Database();
@@ -34,6 +39,11 @@ try {
     $menuController = new MenuController($db);
     $roleController = new RoleController($db);
     $roleMenuController = new RoleMenuController($db);
+    $empresaController = new EmpresaController($db);
+    $dispositivoGPSController = new DispositivoGPSController($db);
+    $ubicacionController = new UbicacionController($db);
+    $asignacionDispositivoController = new AsignacionDispositivoController($db);
+    $tipoGPSController = new TipoGPSController($db);
 
     $action = isset($_GET['action']) ? $_GET['action'] : '';
 
@@ -44,6 +54,18 @@ try {
             break;
         case 'register':
             $userController->register();
+            break;
+        case 'getAllUsers':
+            $userController->getAllUsers();
+            break;
+        case 'createUser':
+            $userController->createUser();
+            break;
+        case 'updateUser':
+            $userController->updateUser();
+            break;
+        case 'deleteUser':
+            $userController->deleteUser();
             break;
         
         // Menu actions
@@ -75,18 +97,72 @@ try {
         case 'updateRoleMenus':
             $roleMenuController->updateRoleMenus();
             break;
-        case 'getAllUsers':
-            $userController->getAllUsers();
+
+        // Empresa actions
+        case 'getAllEmpresas':
+            $empresaController->getAllEmpresas();
             break;
-        case 'createUser':
-            $userController->createUser();
+        case 'createEmpresa':
+            $empresaController->createEmpresa();
             break;
-        case 'updateUser':
-            $userController->updateUser();
+        case 'updateEmpresa':
+            $empresaController->updateEmpresa();
             break;
-        case 'deleteUser':
-            $userController->deleteUser();
+        case 'deleteEmpresa':
+            $empresaController->deleteEmpresa();
             break;
+
+        // DispositivoGPS actions
+        case 'getAllDispositivosGPS':
+            $dispositivoGPSController->getAllDispositivosGPS();
+            break;
+        case 'createDispositivoGPS':
+            $dispositivoGPSController->createDispositivoGPS();
+            break;
+        case 'updateDispositivoGPS':
+            $dispositivoGPSController->updateDispositivoGPS();
+            break;
+        case 'deleteDispositivoGPS':
+            $dispositivoGPSController->deleteDispositivoGPS();
+            break;
+
+        // Ubicacion actions
+        case 'getAllUbicaciones':
+            $ubicacionController->getAllUbicaciones();
+            break;
+        case 'createUbicacion':
+            $ubicacionController->createUbicacion();
+            break;
+        case 'getUbicacionesPorDispositivo':
+            $ubicacionController->getUbicacionesPorDispositivo();
+            break;
+
+        // AsignacionDispositivo actions
+        case 'getAllAsignaciones':
+            $asignacionDispositivoController->getAllAsignaciones();
+            break;
+        case 'createAsignacion':
+            $asignacionDispositivoController->createAsignacion();
+            break;
+        case 'updateAsignacion':
+            $asignacionDispositivoController->updateAsignacion();
+            break;
+        case 'deleteAsignacion':
+            $asignacionDispositivoController->deleteAsignacion();
+            break;
+        case 'createTipoGPS';
+            $tipoGPSController->createTipoGPS();
+            break;
+        case 'getAllTiposGPS';
+            $tipoGPSController->getAllTiposGPS();
+            break;
+        case 'updateTipoGPS';
+            $tipoGPSController->updateTipoGPS();
+            break;
+        case 'deleteTipoGPS';
+            $tipoGPSController->deleteTipoGPS();
+            break;        
+
         default:
             echo json_encode(['error' => 'Invalid action']);
             break;

@@ -12,8 +12,8 @@ socketio = SocketIO(app, cors_allowed_origins="*")
 db = Database(os.path.join(DATA_DIR, 'gps.db'))
 
 # Importar AlertSystem después de definir socketio
-from alerts import AlertSystem
-alert_system = AlertSystem(socketio)
+#from alerts import AlertSystem
+# alert_system = AlertSystem(socketio)
 
 # Diccionario para almacenar sesiones de seguimiento activas
 active_tracking = {}
@@ -112,7 +112,8 @@ def get_gps_analytics(imei):
 
 @socketio.on('connect')
 def handle_connect():
-    alert_system.start()
+    #alert_system.start()
+    print('connected')
 
 def start_api():
     socketio.run(app, host='0.0.0.0', port=5000, debug=False)

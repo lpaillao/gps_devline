@@ -1,3 +1,4 @@
+# server2/gps_manager.py
 from database import Database
 from config import DB_FILE
 

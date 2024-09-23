@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import axios from 'axios';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { API_BASE_URL } from './config';
 import Layout from './components/layout/Layout';
 import LandingPage from './components/LandingPage';
 import LoginPage from './components/LoginPage';
@@ -15,6 +16,12 @@ import GPSVehicleManagement from './components/gps/GPSVehicleManagement';
 import MenuManagement from './components/admin/MenuManagement/MenuManagement';
 import RoleManagement from './components/admin/RoleManagement/RoleManagement';
 import RoleMenuAssociation from './components/admin/RoleMenuAssociation/RoleMenuAssociation';
+import EmpresaManagement from './components/empresas/EmpresaManagement';
+import DispositivoGPSManagement from './components/dispositivos/DispositivoGPSManagement';
+import TipoGPSManagement from './components/tiposgps/TipoGPSManagement';
+import UbicacionManagement from './components/ubicaciones/UbicacionManagement';
+import AsignacionDispositivoManagement from './components/asignaciones/AsignacionDispositivoManagement';
+
 
 const ProtectedRoute = ({ children }) => {
   const { user, loading } = useAuth();
@@ -38,7 +45,7 @@ const DynamicRoutes = () => {
     const fetchMenuRoutes = async () => {
       if (user && user.role_id) {
         try {
-          const response = await axios.get(`http://localhost/devline_app/gps_devline/backend/index.php?action=getMenusByRoleId&roleId=${user.role_id}`, {
+          const response = await axios.get(`${API_BASE_URL}?action=getMenusByRoleId&roleId=${user.role_id}`, {
             withCredentials: true
           });
           if (response.data.success) {
@@ -63,6 +70,11 @@ const DynamicRoutes = () => {
       case '/admin/menus': return MenuManagement;
       case '/admin/roles': return RoleManagement;
       case '/admin/role-menu': return RoleMenuAssociation;
+      case '/empresas': return EmpresaManagement;
+      case '/dispositivos': return DispositivoGPSManagement;
+      case '/tipos-gps': return TipoGPSManagement;
+      case '/ubicaciones': return UbicacionManagement;
+      case '/asignaciones': return AsignacionDispositivoManagement;
       default: return () => <div>Page not found</div>;
     }
   };
