@@ -41,7 +41,7 @@ class ClientThread(Thread):
         logging.info("Waiting for GPS data...")
 
         try:
-            buff = self.conn.recv(8192)
+            buff = self.client_socket.recv(8192)
             received = binascii.hexlify(buff).decode()
             logging.debug(f"Received GPS data: {received}")
 
@@ -52,17 +52,17 @@ class ClientThread(Thread):
                 if records:
                     self.data_manager.save_data(self.imei, records)
                     self.display_records(records)
-                    self.conn.send(struct.pack("!L", len(records)))
+                    self.client_socket.send(struct.pack("!L", len(records)))
                     logging.info(f"Processed {len(records)} records from IMEI: {self.imei}")
                 else:
                     logging.warning("No valid records decoded from the GPS data")
-                    self.conn.send(struct.pack("!L", 0))
+                    self.client_socket.send(struct.pack("!L", 0))
             else:
                 logging.warning("No valid GPS data received")
-                self.conn.send(struct.pack("!L", 0))
+                self.client_socket.send(struct.pack("!L", 0))
         except Exception as e:
             logging.error(f"Error handling data: {e}")
-            self.conn.send(struct.pack("!L", 0))
+            self.client_socket.send(struct.pack("!L", 0))
 
     def display_records(self, records):
         print(f"\n{'='*50}")
