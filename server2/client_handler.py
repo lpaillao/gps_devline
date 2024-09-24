@@ -71,10 +71,10 @@ class ClientHandler(Thread):
                     logging.info(f"Procesados {len(records)} registros del IMEI: {self.imei}")
                 else:
                     logging.warning("No se decodificaron registros válidos de los datos GPS")
-                    self.conn.send(b'\x00')
+                    self.conn.send(struct.pack("!L", 0))
             else:
                 logging.warning("No se recibieron datos GPS válidos")
-                self.conn.send(b'\x00')
+                self.conn.send(struct.pack("!L", 0))
             
             return True
         except Exception as e:
