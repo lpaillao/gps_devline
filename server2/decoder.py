@@ -3,6 +3,7 @@ from datetime import datetime
 import logging
 
 class Decoder:
+
     def __init__(self, carga_util, imei):
         self.carga_util = carga_util
         self.imei = imei
@@ -11,12 +12,8 @@ class Decoder:
     def decodificar_datos(self):
         logging.debug(f"Carga útil sin procesar: {self.carga_util}")
 
-        if len(self.carga_util) < 20:
-            logging.warning("Carga útil demasiado corta para contener datos válidos")
-            return []
-
         numero_de_registros = int(self.carga_util[18:20], 16)
-        numero_de_registros_final = int(self.carga_util[-10:-8], 16) if len(self.carga_util) >= 10 else 0
+        numero_de_registros_final = int(self.carga_util[-10:-8], 16)
         logging.info(f"Número de registros: {numero_de_registros}, Número final: {numero_de_registros_final}")
 
         datos_avl = self.carga_util[20:-10]
@@ -31,24 +28,26 @@ class Decoder:
                     break
                 try:
                     registro = self._decodificar_registro_individual(datos_avl[posicion:])
-                    registros.append(registro)
-                    longitud_registro = self._obtener_longitud_registro(datos_avl[posicion:])
-                    if longitud_registro is None:
-                        logging.warning(f"No se puede determinar la longitud del registro en la posición {posicion}")
+                    if registro:
+                        registros.append(registro)
+                        longitud_registro = self._obtener_longitud_registro(datos_avl[posicion:])
+                        if longitud_registro is None:
+                            logging.warning(f"No se puede determinar la longitud del registro en la posición {posicion}")
+                            break
+                        posicion += longitud_registro
+                    else:
+                        logging.warning(f"No se pudo decodificar el registro en la posición {posicion}")
                         break
-                    posicion += longitud_registro
-                    logging.info(f"Registro decodificado: {registro}")
                 except Exception as e:
                     logging.error(f"Error al decodificar el registro: {e}")
                     break
-        else:
-            logging.warning(f"Discrepancia en el número de registros: inicio={numero_de_registros}, fin={numero_de_registros_final}")
 
-        return registros
+            return registros
 
     def _decodificar_registro_individual(self, datos_registro):
-        if len(datos_registro) < 46:
-            raise ValueError("Datos insuficientes para decodificar un registro individual")
+        if len(datos_registro) < 46:  # Asegúrate de que este número sea correcto para tu formato de datos
+            logging.warning("Datos insuficientes para decodificar un registro completo")
+            return None
 
         marca_tiempo = self._decodificar_marca_tiempo(datos_registro[0:16])
         prioridad = int(datos_registro[16:18], 16)
@@ -62,7 +61,6 @@ class Decoder:
             "Datos GPS": datos_gps,
             "Datos E/S": datos_io
         }
-
     def _decodificar_marca_tiempo(self, marca_tiempo_hex):
         marca_tiempo_int = int(marca_tiempo_hex, 16)
         return datetime.utcfromtimestamp(marca_tiempo_int/1000)
@@ -110,26 +108,43 @@ class Decoder:
         }
 
     def _obtener_longitud_registro(self, datos_registro):
-        if len(datos_registro) < 23:
+        if len(datos_registro) < 23:  # Ajusta este número según tu formato de datos
+            logging.warning("Datos de registro demasiado cortos")
             return None
 
-        # Un registro individual consta de:
-        # 8 bytes (marca de tiempo) + 1 byte (prioridad) + 14 bytes (datos GPS) + datos E/S variables
-        inicio_datos_io = 23
+        inicio_datos_io = 23  # Ajusta este número si es necesario
         if len(datos_registro) < inicio_datos_io + 4:
+            logging.warning("Datos insuficientes para los datos E/S")
             return None
 
-        elementos_evento_io = int(datos_registro[inicio_datos_io+2:inicio_datos_io+4], 16)
-        longitud_datos_io = 4  # Código de evento E/S (1 byte) + Número de elementos E/S (1 byte)
-        
-        posicion = inicio_datos_io + 4
-        for tamano_bit in [1, 2, 4, 8]:
-            if posicion + 2 > len(datos_registro):
-                return None
-            num_elementos = int(datos_registro[posicion:posicion+2], 16)
-            posicion += 2
-            longitud_datos_io += 2 + num_elementos * (1 + tamano_bit)
-            if posicion + num_elementos * (1 + tamano_bit) > len(datos_registro):
+        try:
+            elementos_evento_io = int(datos_registro[inicio_datos_io+2:inicio_datos_io+4], 16)
+            longitud_datos_io = 4  # Código de evento E/S (1 byte) + Número de elementos E/S (1 byte)
+            
+            posicion = inicio_datos_io + 4
+            for tamano_bit in [1, 2, 4, 8]:
+                if posicion + 2 > len(datos_registro):
+                    logging.warning(f"Fin inesperado de datos en la posición {posicion}")
+                    return None
+                num_elementos = int(datos_registro[posicion:posicion+2], 16)
+                posicion += 2
+                longitud_elemento = 1 + tamano_bit  # 1 byte para el ID del elemento + tamaño del valor
+                longitud_datos_io += 2 + num_elementos * longitud_elemento
+                if posicion + num_elementos * longitud_elemento > len(datos_registro):
+                    logging.warning(f"Datos insuficientes para elementos de {tamano_bit} bytes")
+                    return None
+                posicion += num_elementos * longitud_elemento
+
+            longitud_total = inicio_datos_io + longitud_datos_io
+            if longitud_total <= len(datos_registro):
+                return longitud_total
+            else:
+                logging.warning(f"Longitud calculada ({longitud_total}) excede la longitud de los datos ({len(datos_registro)})")
                 return None
 
-        return inicio_datos_io + longitud_datos_io
+        except ValueError as e:
+            logging.error(f"Error al convertir datos a entero: {e}")
+            return None
+        except Exception as e:
+            logging.error(f"Error inesperado al obtener longitud del registro: {e}")
+            return None
