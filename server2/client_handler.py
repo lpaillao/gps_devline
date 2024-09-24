@@ -54,7 +54,7 @@ class ClientHandler(Thread):
             decoder = Decoder(carga_util=received, imei=self.imei)
             records = decoder.decodificar_datos()
             if records:
-                self.data_manager.save_data(self.imei, records)
+                self.data_manager.guardar_datos(self.imei, records)
                 self.display_records(records)
                 self.conn.send(struct.pack("!L", len(records)))
                 logging.info(f"Procesados {len(records)} registros del IMEI: {self.imei}")

@@ -3,7 +3,7 @@ import logging
 from database import Database
 from config import DB_FILE
 
-class GestorDeDatos:
+class DataManager:
     def __init__(self):
         self.db = Database(DB_FILE)
 
