@@ -1,6 +1,7 @@
 import struct
 from datetime import datetime, timezone
 import logging
+import math
 
 class Decoder:
     def __init__(self, payload, imei):
@@ -10,73 +11,45 @@ class Decoder:
 
     def decode_data(self):
         try:
-            logging.debug(f"Payload length: {len(self.payload)}")
             logging.debug(f"Raw payload: {self.payload}")
 
-            if len(self.payload) < 16:
-                logging.error(f"Payload too short: {len(self.payload)} bytes")
-                return None
-
-            self.index = 16  # Skip first 16 characters (8 bytes: 4 zeros + 4 data length)
-            logging.debug(f"Starting decoding from index: {self.index}")
-
-            if self.index + 2 > len(self.payload):
-                logging.error("Payload too short to read codec ID")
-                return None
+            self.index = 16  # Saltar los primeros 8 bytes (4 bytes de ceros + 4 bytes de longitud de datos)
 
             codec_id = int(self.payload[self.index:self.index + 2], 16)
             self.index += 2
-            logging.debug(f"Codec ID: {codec_id}")
 
             if codec_id != 0x08:
-                logging.error(f"Unsupported codec ID: {codec_id}")
-                return None
-
-            if self.index + 2 > len(self.payload):
-                logging.error("Payload too short to read number of data")
-                return None
+                raise ValueError(f"Unsupported codec ID: {codec_id}")
 
             num_of_data = int(self.payload[self.index:self.index + 2], 16)
             self.index += 2
-            logging.debug(f"Number of data records: {num_of_data}")
 
             records = []
-            for i in range(num_of_data):
-                logging.debug(f"Parsing record {i+1}/{num_of_data}")
+            for _ in range(num_of_data):
                 record = self.parse_avl_record()
                 if record:
                     records.append(record)
-                else:
-                    logging.warning(f"Failed to parse record {i+1}")
 
-            logging.info(f"Successfully parsed {len(records)} out of {num_of_data} records")
+            self.process_fleet_data(records)
+
+            num_of_data_end = int(self.payload[-4:-2], 16)
+            if num_of_data != num_of_data_end:
+                logging.warning(f"Number of records mismatch: start={num_of_data}, end={num_of_data_end}")
+
             return records
+
         except Exception as e:
-            logging.exception(f"Error decoding data: {e}")
+            logging.error(f"Error decoding data: {e}")
             return None
 
     def parse_avl_record(self):
         try:
-            if self.index + 16 > len(self.payload):
-                logging.error("Payload too short to read timestamp")
-                return None
-
             timestamp = struct.unpack('>Q', bytes.fromhex(self.payload[self.index:self.index + 16]))[0]
             timestamp = datetime.fromtimestamp(timestamp / 1000, timezone.utc)
             self.index += 16
-            logging.debug(f"Timestamp: {timestamp}")
-
-            if self.index + 2 > len(self.payload):
-                logging.error("Payload too short to read priority")
-                return None
 
             priority = int(self.payload[self.index:self.index + 2], 16)
             self.index += 2
-            logging.debug(f"Priority: {priority}")
-
-            if self.index + 24 > len(self.payload):
-                logging.error("Payload too short to read GPS data")
-                return None
 
             longitude = struct.unpack('>i', bytes.fromhex(self.payload[self.index:self.index + 8]))[0] / 10000000.0
             self.index += 8
@@ -91,11 +64,9 @@ class Decoder:
             speed = struct.unpack('>H', bytes.fromhex(self.payload[self.index:self.index + 4]))[0]
             self.index += 4
 
-            logging.debug(f"GPS Data: Lon={longitude}, Lat={latitude}, Alt={altitude}, Angle={angle}, Sat={satellites}, Speed={speed}")
-
             io_records = self.parse_io_data()
 
-            record = {
+            return {
                 "IMEI": self.imei,
                 "DateTime": timestamp.isoformat(),
                 "Priority": priority,
@@ -109,69 +80,112 @@ class Decoder:
                 },
                 "I/O Data": io_records
             }
-
-            # Añadir Fleet Data si está disponible
-            fleet_data = self.process_fleet_data(record)
-            if fleet_data:
-                record['Fleet Data'] = fleet_data
-
-            # Añadir Alerts si están disponibles
-            alerts = self.check_for_alerts(record)
-            if alerts:
-                record['Alerts'] = alerts
-
-            return record
         except Exception as e:
-            logging.exception(f"Error parsing AVL record: {e}")
+            logging.error(f"Error parsing AVL record: {e}")
             return None
 
     def parse_io_data(self):
         io_records = {}
-        try:
-            if self.index + 2 > len(self.payload):
-                logging.error("Payload too short to read Event IO ID")
-                return io_records
 
+        try:
             event_io_id = int(self.payload[self.index:self.index + 2], 16)
             self.index += 2
             io_records['Event IO ID'] = event_io_id
-            logging.debug(f"Event IO ID: {event_io_id}")
-
-            if self.index + 2 > len(self.payload):
-                logging.error("Payload too short to read N of Total IO")
-                return io_records
 
             n_total_id = int(self.payload[self.index:self.index + 2], 16)
             self.index += 2
-            logging.debug(f"N of Total IO: {n_total_id}")
 
             for io_size in [1, 2, 4, 8]:
-                if self.index + 2 > len(self.payload):
-                    logging.error(f"Payload too short to read N of IO for size {io_size}")
-                    break
-
                 n_items = int(self.payload[self.index:self.index + 2], 16)
                 self.index += 2
-                logging.debug(f"N of IO for size {io_size}: {n_items}")
-
                 for _ in range(n_items):
-                    if self.index + 2 > len(self.payload):
-                        logging.error(f"Payload too short to read IO ID for size {io_size}")
-                        break
-
                     io_id = int(self.payload[self.index:self.index + 2], 16)
                     self.index += 2
-
-                    if self.index + io_size * 2 > len(self.payload):
-                        logging.error(f"Payload too short to read IO value for size {io_size}")
-                        break
-
                     io_value = struct.unpack(f'>{"BHIQ"[io_size // 2]}', bytes.fromhex(self.payload[self.index:self.index + io_size * 2]))[0]
                     self.index += io_size * 2
-                    io_records[f'IO ID {io_id}'] = io_value
-                    logging.debug(f"IO ID {io_id}: {io_value}")
+                    io_name = IO_ID_MAPPING.get(io_id, f'IO ID {io_id}')
+                    io_records[io_name] = io_value
 
             return io_records
         except Exception as e:
-            logging.exception(f"Error parsing IO data: {e}")
+            logging.error(f"Error parsing IO data: {e}")
             return io_records
+
+    def process_fleet_data(self, records):
+        if len(records) < 2:
+            return
+
+        for i in range(1, len(records)):
+            prev_record = records[i-1]
+            curr_record = records[i]
+
+            prev_time = datetime.fromisoformat(prev_record['DateTime'])
+            curr_time = datetime.fromisoformat(curr_record['DateTime'])
+            time_diff = (curr_time - prev_time).total_seconds() / 3600  # en horas
+
+            distance = self.haversine_distance(
+                prev_record['Location']['Latitude'], prev_record['Location']['Longitude'],
+                curr_record['Location']['Latitude'], curr_record['Location']['Longitude']
+            )
+
+            avg_speed = distance / abs(time_diff) if time_diff != 0 else 0
+
+            curr_record['Fleet Data'] = {
+                'Distance from Last Point (km)': round(distance, 2),
+                'Time since Last Point (hours)': round(time_diff, 2),
+                'Average Speed (km/h)': round(avg_speed, 2),
+                'Heading': self.get_heading(curr_record['Location']['Angle']),
+                'Movement Status': self.get_movement_status(curr_record['Location']['Speed']),
+                'Estimated Fuel Consumption (L)': round(distance * 0.3, 2)
+            }
+
+            curr_record['Alerts'] = self.check_for_alerts(curr_record, prev_record)
+
+    def haversine_distance(self, lat1, lon1, lat2, lon2):
+        R = 6371  # Earth radius in kilometers
+
+        phi1 = math.radians(lat1)
+        phi2 = math.radians(lat2)
+        delta_phi = math.radians(lat2 - lat1)
+        delta_lambda = math.radians(lon2 - lon1)
+
+        a = math.sin(delta_phi/2)**2 + math.cos(phi1) * math.cos(phi2) * math.sin(delta_lambda/2)**2
+        c = 2 * math.atan2(math.sqrt(a), math.sqrt(1-a))
+
+        return R * c
+
+    def get_heading(self, angle):
+        headings = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"]
+        return headings[round(angle / 45) % 8]
+
+    def get_movement_status(self, speed):
+        if speed == 0:
+            return "Stopped"
+        elif speed < 10:
+            return "Idle"
+        elif speed < 60:
+            return "Moving"
+        else:
+            return "Fast Moving"
+
+    def check_for_alerts(self, curr_record, prev_record):
+        alerts = []
+
+        # Verificar cambios repentinos de velocidad
+        if abs(curr_record['Location']['Speed'] - prev_record['Location']['Speed']) > 30:
+            alerts.append("Sudden speed change detected")
+
+        # Verificar geofence (coordenadas de ejemplo, ajustar según sea necesario)
+        if not (-39.0 <= curr_record['Location']['Latitude'] <= -38.0 and
+                -73.0 <= curr_record['Location']['Longitude'] <= -72.0):
+            if curr_record['Location']['Latitude'] != 0 or curr_record['Location']['Longitude'] != 0:
+                alerts.append("Vehicle outside designated area")
+
+        # Verificar paradas prolongadas
+        if 'Fleet Data' in curr_record and 'Fleet Data' in prev_record:
+            if (curr_record['Location']['Speed'] == 0 and
+                prev_record['Location']['Speed'] == 0 and
+                curr_record['Fleet Data']['Time since Last Point (hours)'] > 1):
+                alerts.append("Extended stop detected")
+
+        return alerts
