@@ -111,25 +111,44 @@ class Decoder:
 
     def _obtener_longitud_registro(self, datos_registro):
         if len(datos_registro) < 23:
+            logging.warning("Datos de registro demasiado cortos")
             return None
 
         # Un registro individual consta de:
         # 8 bytes (marca de tiempo) + 1 byte (prioridad) + 14 bytes (datos GPS) + datos E/S variables
         inicio_datos_io = 23
         if len(datos_registro) < inicio_datos_io + 4:
+            logging.warning("Datos insuficientes para los datos E/S")
             return None
 
-        elementos_evento_io = int(datos_registro[inicio_datos_io+2:inicio_datos_io+4], 16)
-        longitud_datos_io = 4  # Código de evento E/S (1 byte) + Número de elementos E/S (1 byte)
-        
-        posicion = inicio_datos_io + 4
-        for tamano_bit in [1, 2, 4, 8]:
-            if posicion + 2 > len(datos_registro):
-                return None
-            num_elementos = int(datos_registro[posicion:posicion+2], 16)
-            posicion += 2
-            longitud_datos_io += 2 + num_elementos * (1 + tamano_bit)
-            if posicion + num_elementos * (1 + tamano_bit) > len(datos_registro):
+        try:
+            elementos_evento_io = int(datos_registro[inicio_datos_io+2:inicio_datos_io+4], 16)
+            longitud_datos_io = 4  # Código de evento E/S (1 byte) + Número de elementos E/S (1 byte)
+            
+            posicion = inicio_datos_io + 4
+            for tamano_bit in [1, 2, 4, 8]:
+                if posicion + 2 > len(datos_registro):
+                    logging.warning(f"Fin inesperado de datos en la posición {posicion}")
+                    return None
+                num_elementos = int(datos_registro[posicion:posicion+2], 16)
+                posicion += 2
+                longitud_elemento = 1 + tamano_bit  # 1 byte para el ID del elemento + tamaño del valor
+                longitud_datos_io += 2 + num_elementos * longitud_elemento
+                if posicion + num_elementos * longitud_elemento > len(datos_registro):
+                    logging.warning(f"Datos insuficientes para elementos de {tamano_bit} bytes")
+                    return None
+                posicion += num_elementos * longitud_elemento
+
+            longitud_total = inicio_datos_io + longitud_datos_io
+            if longitud_total <= len(datos_registro):
+                return longitud_total
+            else:
+                logging.warning(f"Longitud calculada ({longitud_total}) excede la longitud de los datos ({len(datos_registro)})")
                 return None
 
-        return inicio_datos_io + longitud_datos_io
+        except ValueError as e:
+            logging.error(f"Error al convertir datos a entero: {e}")
+            return None
+        except Exception as e:
+            logging.error(f"Error inesperado al obtener longitud del registro: {e}")
+            return None

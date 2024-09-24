@@ -70,15 +70,15 @@ class Database:
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ''', (
             datos['IMEI'],
-            datos['DateTime'],
-            datos['GPS Data']['Latitude'],
-            datos['GPS Data']['Longitude'],
-            datos['GPS Data']['Altitude'],
-            datos['GPS Data']['Angle'],
-            datos['GPS Data']['Satellites'],
-            datos['GPS Data']['Speed'],
-            datos['Priority'],
-            str(datos['I/O Data'])
+            datos['FechaHora'],
+            datos['Datos GPS']['Latitud'],
+            datos['Datos GPS']['Longitud'],
+            datos['Datos GPS']['Altitud'],
+            datos['Datos GPS']['Ángulo'],
+            datos['Datos GPS']['Satélites'],
+            datos['Datos GPS']['Velocidad'],
+            datos['Prioridad'],
+            str(datos['Datos E/S'])
         ))
         conn.commit()
         conn.close()
