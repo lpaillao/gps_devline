@@ -1,23 +1,23 @@
 import sqlite3
 import logging
 from config import DATABASE_NAME
+import threading
 
 class Database:
-    def __init__(self):
-        self.conn = None
-        self.cursor = None
+    _local = threading.local()
 
-    def connect(self):
-        try:
-            self.conn = sqlite3.connect(DATABASE_NAME)
-            self.cursor = self.conn.cursor()
-            self.create_tables()
-            logging.info("Connected to the database successfully")
-        except sqlite3.Error as e:
-            logging.error(f"Error connecting to database: {e}")
+    @classmethod
+    def get_connection(cls):
+        if not hasattr(cls._local, "connection"):
+            cls._local.connection = sqlite3.connect(DATABASE_NAME)
+            cls._local.connection.row_factory = sqlite3.Row
+            cls.create_tables(cls._local.connection)
+        return cls._local.connection
 
-    def create_tables(self):
-        self.cursor.execute('''
+    @classmethod
+    def create_tables(cls, conn):
+        cursor = conn.cursor()
+        cursor.execute('''
             CREATE TABLE IF NOT EXISTS gps_data (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 imei TEXT,
@@ -30,11 +30,14 @@ class Database:
                 speed INTEGER
             )
         ''')
-        self.conn.commit()
+        conn.commit()
 
-    def insert_gps_data(self, imei, data):
+    @classmethod
+    def insert_gps_data(cls, imei, data):
         try:
-            self.cursor.execute('''
+            conn = cls.get_connection()
+            cursor = conn.cursor()
+            cursor.execute('''
                 INSERT INTO gps_data (imei, timestamp, latitude, longitude, altitude, angle, satellites, speed)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             ''', (
@@ -47,35 +50,42 @@ class Database:
                 data['Location']['Satellites'],
                 data['Location']['Speed']
             ))
-            self.conn.commit()
+            conn.commit()
         except sqlite3.Error as e:
             logging.error(f"Error inserting GPS data: {e}")
 
-    def get_gps_data_by_imei(self, imei, limit=100):
+    @classmethod
+    def get_gps_data_by_imei(cls, imei, limit=100):
         try:
-            self.cursor.execute('''
+            conn = cls.get_connection()
+            cursor = conn.cursor()
+            cursor.execute('''
                 SELECT * FROM gps_data
                 WHERE imei = ?
                 ORDER BY timestamp DESC
                 LIMIT ?
             ''', (imei, limit))
-            return self.cursor.fetchall()
+            return [dict(row) for row in cursor.fetchall()]
         except sqlite3.Error as e:
             logging.error(f"Error fetching GPS data: {e}")
             return []
 
-    def get_connected_devices(self):
+    @classmethod
+    def get_connected_devices(cls):
         try:
-            self.cursor.execute('''
+            conn = cls.get_connection()
+            cursor = conn.cursor()
+            cursor.execute('''
                 SELECT DISTINCT imei FROM gps_data
                 WHERE timestamp > datetime('now', '-5 minutes')
             ''')
-            return [row[0] for row in self.cursor.fetchall()]
+            return [row[0] for row in cursor.fetchall()]
         except sqlite3.Error as e:
             logging.error(f"Error fetching connected devices: {e}")
             return []
 
-    def close(self):
-        if self.conn:
-            self.conn.close()
-            logging.info("Database connection closed")
+    @classmethod
+    def close(cls):
+        if hasattr(cls._local, "connection"):
+            cls._local.connection.close()
+            del cls._local.connection

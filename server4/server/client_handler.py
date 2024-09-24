@@ -11,7 +11,6 @@ class ClientHandler(Thread):
         self.conn = conn
         self.addr = addr
         self.imei = "unknown"
-        self.data_manager = DataManager()
 
     def run(self):
         logging.info(f"New connection from {self.addr}")
@@ -52,7 +51,7 @@ class ClientHandler(Thread):
                 records = decoder.decode_data()
 
                 if records:
-                    self.data_manager.save_data(self.imei, records)
+                    DataManager.save_data(self.imei, records)
                     self.conn.send(struct.pack("!L", len(records)))
                     logging.info(f"Processed {len(records)} records from IMEI: {self.imei}")
                 else:
