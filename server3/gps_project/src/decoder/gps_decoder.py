@@ -95,7 +95,7 @@ class Decoder:
 
             io_records = self.parse_io_data()
 
-            return {
+            record = {
                 "IMEI": self.imei,
                 "DateTime": timestamp.isoformat(),
                 "Priority": priority,
@@ -109,6 +109,18 @@ class Decoder:
                 },
                 "I/O Data": io_records
             }
+
+            # Añadir Fleet Data si está disponible
+            fleet_data = self.process_fleet_data(record)
+            if fleet_data:
+                record['Fleet Data'] = fleet_data
+
+            # Añadir Alerts si están disponibles
+            alerts = self.check_for_alerts(record)
+            if alerts:
+                record['Alerts'] = alerts
+
+            return record
         except Exception as e:
             logging.exception(f"Error parsing AVL record: {e}")
             return None

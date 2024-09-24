@@ -38,27 +38,56 @@ class ClientThread(Thread):
         self.data_manager.add_connected_gps(self.imei)
 
     def handle_data(self):
-        while True:
-            try:
-                length_bytes = self.client_socket.recv(4)
-                if len(length_bytes) != 4:
-                    break
+        logging.info("Waiting for GPS data...")
 
-                data_length = struct.unpack('>I', length_bytes)[0]
-                data = self.client_socket.recv(data_length)
-                if len(data) != data_length:
-                    break
+        try:
+            buff = self.conn.recv(8192)
+            received = binascii.hexlify(buff).decode()
+            logging.debug(f"Received GPS data: {received}")
 
-                received = binascii.hexlify(length_bytes + data).decode()
+            if len(received) > 8:  # Asegurarse de que hay al menos algunos datos
                 decoder = Decoder(payload=received, imei=self.imei)
                 records = decoder.decode_data()
 
                 if records:
-                    self.data_manager.save_gps_data(self.imei, records)
-                    self.client_socket.send(struct.pack(">I", len(records)))
+                    self.data_manager.save_data(self.imei, records)
+                    self.display_records(records)
+                    self.conn.send(struct.pack("!L", len(records)))
                     logging.info(f"Processed {len(records)} records from IMEI: {self.imei}")
                 else:
-                    self.client_socket.send(struct.pack(">I", 0))
-            except Exception as e:
-                logging.error(f"Error processing data from {self.imei}: {e}")
-                break
+                    logging.warning("No valid records decoded from the GPS data")
+                    self.conn.send(struct.pack("!L", 0))
+            else:
+                logging.warning("No valid GPS data received")
+                self.conn.send(struct.pack("!L", 0))
+        except Exception as e:
+            logging.error(f"Error handling data: {e}")
+            self.conn.send(struct.pack("!L", 0))
+
+    def display_records(self, records):
+        print(f"\n{'='*50}")
+        print(f"Decoded GPS Data for IMEI: {self.imei}")
+        print(f"{'='*50}")
+        for i, record in enumerate(records, 1):
+            print(f"\nRecord {i}:")
+            print(f"  Timestamp: {record['DateTime']}")
+            print(f"  Priority: {record['Priority']}")
+            print("  Location:")
+            print(f"    Latitude:  {record['Location']['Latitude']}")
+            print(f"    Longitude: {record['Location']['Longitude']}")
+            print(f"    Altitude:  {record['Location']['Altitude']} m")
+            print(f"    Angle:     {record['Location']['Angle']}°")
+            print(f"    Satellites:{record['Location']['Satellites']}")
+            print(f"    Speed:     {record['Location']['Speed']} km/h")
+            print("  I/O Data:")
+            for key, value in record['I/O Data'].items():
+                print(f"    {key}: {value}")
+            if 'Fleet Data' in record:
+                print("  Fleet Data:")
+                for key, value in record['Fleet Data'].items():
+                    print(f"    {key}: {value}")
+            if 'Alerts' in record:
+                print("  Alerts:")
+                for alert in record['Alerts']:
+                    print(f"    - {alert}")
+        print(f"\n{'='*50}\n")
