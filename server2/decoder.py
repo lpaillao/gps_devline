@@ -3,6 +3,7 @@ from datetime import datetime
 import logging
 
 class Decoder:
+
     def __init__(self, carga_util, imei):
         self.carga_util = carga_util
         self.imei = imei
@@ -11,12 +12,8 @@ class Decoder:
     def decodificar_datos(self):
         logging.debug(f"Carga útil sin procesar: {self.carga_util}")
 
-        if len(self.carga_util) < 20:
-            logging.warning("Carga útil demasiado corta para contener datos válidos")
-            return []
-
         numero_de_registros = int(self.carga_util[18:20], 16)
-        numero_de_registros_final = int(self.carga_util[-10:-8], 16) if len(self.carga_util) >= 10 else 0
+        numero_de_registros_final = int(self.carga_util[-10:-8], 16)
         logging.info(f"Número de registros: {numero_de_registros}, Número final: {numero_de_registros_final}")
 
         datos_avl = self.carga_util[20:-10]
@@ -26,29 +23,19 @@ class Decoder:
         if numero_de_registros == numero_de_registros_final:
             posicion = 0
             for _ in range(numero_de_registros):
-                if posicion >= len(datos_avl):
-                    logging.warning(f"Fin inesperado de datos en la posición {posicion}")
-                    break
-                try:
-                    registro = self._decodificar_registro_individual(datos_avl[posicion:])
-                    registros.append(registro)
-                    longitud_registro = self._obtener_longitud_registro(datos_avl[posicion:])
-                    if longitud_registro is None:
-                        logging.warning(f"No se puede determinar la longitud del registro en la posición {posicion}")
-                        break
-                    posicion += longitud_registro
-                    logging.info(f"Registro decodificado: {registro}")
-                except Exception as e:
-                    logging.error(f"Error al decodificar el registro: {e}")
-                    break
+                registro = self._decodificar_registro_individual(datos_avl[posicion:])
+                registros.append(registro)
+                posicion += self._obtener_longitud_registro(datos_avl[posicion:])
+                logging.info(f"Registro decodificado: {registro}")
         else:
             logging.warning(f"Discrepancia en el número de registros: inicio={numero_de_registros}, fin={numero_de_registros_final}")
 
         return registros
 
     def _decodificar_registro_individual(self, datos_registro):
-        if len(datos_registro) < 46:
-            raise ValueError("Datos insuficientes para decodificar un registro individual")
+        if len(datos_registro) < 46:  # Asegúrate de que este número sea correcto para tu formato de datos
+            logging.warning("Datos insuficientes para decodificar un registro completo")
+            return None
 
         marca_tiempo = self._decodificar_marca_tiempo(datos_registro[0:16])
         prioridad = int(datos_registro[16:18], 16)
