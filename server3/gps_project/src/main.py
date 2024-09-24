@@ -1,9 +1,15 @@
 import logging
+import os
 from server.gps_server import GPSServer
 from api.rest_api import start_rest_api
 from config import CONFIG
 
 def setup_logging():
+    # Crear el directorio de logs si no existe
+    log_dir = os.path.dirname(CONFIG['log_file'])
+    if not os.path.exists(log_dir):
+        os.makedirs(log_dir)
+
     logging.basicConfig(level=logging.INFO,
                         format='%(asctime)s - %(levelname)s - %(message)s',
                         filename=CONFIG['log_file'],
