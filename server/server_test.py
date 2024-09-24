@@ -131,8 +131,21 @@ class Decoder:
         return io_records
 
     def decode_imei(self, imei_hex):
-        imei_dec = str(int(imei_hex[4:], 16))
-        return f"{imei_dec[:3]}-{imei_dec[3:5]}-{imei_dec[5:9]}-{imei_dec[9:12]}-{imei_dec[12:]}"
+            # Eliminar el prefijo '000f'
+            imei_hex = imei_hex[4:]
+            
+            # Convertir de hexadecimal a decimal
+            imei_dec = str(int(imei_hex, 16))
+            
+            # Asegurar que tengamos 15 dígitos
+            imei_dec = imei_dec.zfill(15)
+            
+            # Tomar solo los primeros 15 dígitos si es más largo
+            imei_dec = imei_dec[:15]
+            
+            # Formatear como IMEI estándar
+            return f"{imei_dec[:3]}-{imei_dec[3:5]}-{imei_dec[5:9]}-{imei_dec[9:12]}-{imei_dec[12:]}"
+
 
     def process_fleet_data(self, records):
         if len(records) < 2:
@@ -142,21 +155,21 @@ class Decoder:
             prev_record = records[i-1]
             curr_record = records[i]
 
-            # Calculate time difference
+            # Calcular diferencia de tiempo
             prev_time = datetime.fromisoformat(prev_record['DateTime'])
             curr_time = datetime.fromisoformat(curr_record['DateTime'])
-            time_diff = (curr_time - prev_time).total_seconds() / 3600  # in hours
+            time_diff = (curr_time - prev_time).total_seconds() / 3600  # en horas
 
-            # Calculate distance
+            # Calcular distancia
             distance = self.haversine_distance(
                 prev_record['Location']['Latitude'], prev_record['Location']['Longitude'],
                 curr_record['Location']['Latitude'], curr_record['Location']['Longitude']
             )
 
-            # Calculate average speed
-            avg_speed = distance / time_diff if time_diff > 0 else 0
+            # Calcular velocidad promedio
+            avg_speed = distance / abs(time_diff) if time_diff != 0 else 0
 
-            # Add calculated data to current record
+            # Añadir datos calculados al registro actual
             curr_record['Fleet Data'] = {
                 'Distance from Last Point (km)': round(distance, 2),
                 'Time since Last Point (hours)': round(time_diff, 2),
@@ -165,11 +178,12 @@ class Decoder:
                 'Movement Status': self.get_movement_status(curr_record['Location']['Speed']),
             }
 
-            # Add fuel consumption estimate (example calculation, adjust as needed)
-            curr_record['Fleet Data']['Estimated Fuel Consumption (L)'] = round(distance * 0.3, 2)  # Assuming 0.3 L/km
+            # Añadir estimación de consumo de combustible
+            curr_record['Fleet Data']['Estimated Fuel Consumption (L)'] = round(distance * 0.3, 2)
 
-            # Check for potential issues
+            # Verificar alertas
             curr_record['Alerts'] = self.check_for_alerts(curr_record, prev_record)
+
 
     def haversine_distance(self, lat1, lon1, lat2, lon2):
         R = 6371  # Earth radius in kilometers
@@ -201,16 +215,17 @@ class Decoder:
     def check_for_alerts(self, curr_record, prev_record):
         alerts = []
 
-        # Check for sudden speed changes
+        # Verificar cambios repentinos de velocidad
         if abs(curr_record['Location']['Speed'] - prev_record['Location']['Speed']) > 30:
             alerts.append("Sudden speed change detected")
 
-        # Check for geofence (example coordinates, adjust as needed)
+        # Verificar geofence (coordenadas de ejemplo, ajustar según sea necesario)
         if not (-39.0 <= curr_record['Location']['Latitude'] <= -38.0 and
                 -73.0 <= curr_record['Location']['Longitude'] <= -72.0):
-            alerts.append("Vehicle outside designated area")
+            if curr_record['Location']['Latitude'] != 0 or curr_record['Location']['Longitude'] != 0:
+                alerts.append("Vehicle outside designated area")
 
-        # Check for extended stops
+        # Verificar paradas prolongadas
         if (curr_record['Location']['Speed'] == 0 and
             prev_record['Location']['Speed'] == 0 and
             curr_record['Fleet Data']['Time since Last Point (hours)'] > 1):
@@ -337,11 +352,6 @@ def start_server():
         server.close()
         logging.info("Server shut down")
 
-def decode_imei(self, imei_hex):
-    # Eliminar el prefijo '000f' y convertir a decimal
-    imei_dec = str(int(imei_hex[4:], 16))
-    # Formatear como IMEI estándar (14 dígitos)
-    return f"{imei_dec[:3]}-{imei_dec[3:5]}-{imei_dec[5:9]}-{imei_dec[9:12]}-{imei_dec[12:]}"
 if __name__ == "__main__":
     print("Starting GPS Server...")
     print("Press Ctrl+C to stop the server")
