@@ -1,7 +1,7 @@
 import logging
-from src.server.gps_server import GPSServer
-from src.api.rest_api import start_rest_api
-from src.config import CONFIG
+from server.gps_server import GPSServer
+from api.rest_api import start_rest_api
+from config import CONFIG
 
 def setup_logging():
     logging.basicConfig(level=logging.INFO,
