@@ -41,8 +41,9 @@ class Decoder:
         try:
             logging.debug(f"Raw payload: {self.payload}")
 
-            self.index = 16  # Skip preamble and data length
-            
+            # Saltar los primeros 8 bytes (4 bytes de ceros + 4 bytes de longitud de datos)
+            self.index = 16
+
             codec_id = int(self.payload[self.index:self.index + 2], 16)
             self.index += 2
 
@@ -55,7 +56,8 @@ class Decoder:
             records = []
             for _ in range(num_of_data):
                 record = self.parse_avl_record()
-                records.append(record)
+                if record:
+                    records.append(record)
 
             self.process_fleet_data(records)
 
@@ -70,66 +72,73 @@ class Decoder:
             return None
 
     def parse_avl_record(self):
-        timestamp = struct.unpack('>Q', bytes.fromhex(self.payload[self.index:self.index + 16]))[0]
-        timestamp = datetime.fromtimestamp(timestamp / 1000, timezone.utc)
-        self.index += 16
+        try:
+            timestamp = struct.unpack('>Q', bytes.fromhex(self.payload[self.index:self.index + 16]))[0]
+            timestamp = datetime.fromtimestamp(timestamp / 1000, timezone.utc)
+            self.index += 16
 
-        priority = int(self.payload[self.index:self.index + 2], 16)
-        self.index += 2
+            priority = int(self.payload[self.index:self.index + 2], 16)
+            self.index += 2
 
-        longitude = struct.unpack('>i', bytes.fromhex(self.payload[self.index:self.index + 8]))[0] / 10000000.0
-        self.index += 8
-        latitude = struct.unpack('>i', bytes.fromhex(self.payload[self.index:self.index + 8]))[0] / 10000000.0
-        self.index += 8
-        altitude = struct.unpack('>H', bytes.fromhex(self.payload[self.index:self.index + 4]))[0]
-        self.index += 4
-        angle = struct.unpack('>H', bytes.fromhex(self.payload[self.index:self.index + 4]))[0]
-        self.index += 4
-        satellites = int(self.payload[self.index:self.index + 2], 16)
-        self.index += 2
-        speed = struct.unpack('>H', bytes.fromhex(self.payload[self.index:self.index + 4]))[0]
-        self.index += 4
+            longitude = struct.unpack('>i', bytes.fromhex(self.payload[self.index:self.index + 8]))[0] / 10000000.0
+            self.index += 8
+            latitude = struct.unpack('>i', bytes.fromhex(self.payload[self.index:self.index + 8]))[0] / 10000000.0
+            self.index += 8
+            altitude = struct.unpack('>H', bytes.fromhex(self.payload[self.index:self.index + 4]))[0]
+            self.index += 4
+            angle = struct.unpack('>H', bytes.fromhex(self.payload[self.index:self.index + 4]))[0]
+            self.index += 4
+            satellites = int(self.payload[self.index:self.index + 2], 16)
+            self.index += 2
+            speed = struct.unpack('>H', bytes.fromhex(self.payload[self.index:self.index + 4]))[0]
+            self.index += 4
 
-        io_records = self.parse_io_data()
+            io_records = self.parse_io_data()
 
-        return {
-            "IMEI": self.decode_imei(self.imei),
-            "DateTime": timestamp.isoformat(),
-            "Priority": priority,
-            "Location": {
-                "Longitude": longitude,
-                "Latitude": latitude,
-                "Altitude": altitude,
-                "Angle": angle,
-                "Satellites": satellites,
-                "Speed": speed,
-            },
-            "I/O Data": io_records
-        }
+            return {
+                "IMEI": self.imei,
+                "DateTime": timestamp.isoformat(),
+                "Priority": priority,
+                "Location": {
+                    "Longitude": longitude,
+                    "Latitude": latitude,
+                    "Altitude": altitude,
+                    "Angle": angle,
+                    "Satellites": satellites,
+                    "Speed": speed,
+                },
+                "I/O Data": io_records
+            }
+        except Exception as e:
+            logging.error(f"Error parsing AVL record: {e}")
+            return None
 
     def parse_io_data(self):
         io_records = {}
 
-        event_io_id = int(self.payload[self.index:self.index + 2], 16)
-        self.index += 2
-        io_records['Event IO ID'] = event_io_id
-
-        n_total_id = int(self.payload[self.index:self.index + 2], 16)
-        self.index += 2
-
-        for io_size in [1, 2, 4, 8]:
-            n_items = int(self.payload[self.index:self.index + 2], 16)
+        try:
+            event_io_id = int(self.payload[self.index:self.index + 2], 16)
             self.index += 2
-            for _ in range(n_items):
-                io_id = int(self.payload[self.index:self.index + 2], 16)
+            io_records['Event IO ID'] = event_io_id
+
+            n_total_id = int(self.payload[self.index:self.index + 2], 16)
+            self.index += 2
+
+            for io_size in [1, 2, 4, 8]:
+                n_items = int(self.payload[self.index:self.index + 2], 16)
                 self.index += 2
-                io_value = struct.unpack(f'>{"BHIQ"[io_size // 2]}', bytes.fromhex(self.payload[self.index:self.index + io_size * 2]))[0]
-                self.index += io_size * 2
-                io_name = IO_ID_MAPPING.get(io_id, f'IO ID {io_id}')
-                io_records[io_name] = io_value
+                for _ in range(n_items):
+                    io_id = int(self.payload[self.index:self.index + 2], 16)
+                    self.index += 2
+                    io_value = struct.unpack(f'>{"BHIQ"[io_size // 2]}', bytes.fromhex(self.payload[self.index:self.index + io_size * 2]))[0]
+                    self.index += io_size * 2
+                    io_name = IO_ID_MAPPING.get(io_id, f'IO ID {io_id}')
+                    io_records[io_name] = io_value
 
-        return io_records
-
+            return io_records
+        except Exception as e:
+            logging.error(f"Error parsing IO data: {e}")
+            return io_records
     def decode_imei(self, imei_hex):
         # Los primeros 2 bytes (4 caracteres hex) indican la longitud del IMEI
         imei_length = int(imei_hex[:4], 16)
@@ -145,7 +154,6 @@ class Decoder:
         return f"{imei_text[:3]}-{imei_text[3:5]}-{imei_text[5:9]}-{imei_text[9:12]}-{imei_text[12:]}"
 
 
-
     def process_fleet_data(self, records):
         if len(records) < 2:
             return
@@ -154,33 +162,26 @@ class Decoder:
             prev_record = records[i-1]
             curr_record = records[i]
 
-            # Calcular diferencia de tiempo
             prev_time = datetime.fromisoformat(prev_record['DateTime'])
             curr_time = datetime.fromisoformat(curr_record['DateTime'])
             time_diff = (curr_time - prev_time).total_seconds() / 3600  # en horas
 
-            # Calcular distancia
             distance = self.haversine_distance(
                 prev_record['Location']['Latitude'], prev_record['Location']['Longitude'],
                 curr_record['Location']['Latitude'], curr_record['Location']['Longitude']
             )
 
-            # Calcular velocidad promedio
             avg_speed = distance / abs(time_diff) if time_diff != 0 else 0
 
-            # Añadir datos calculados al registro actual
             curr_record['Fleet Data'] = {
                 'Distance from Last Point (km)': round(distance, 2),
                 'Time since Last Point (hours)': round(time_diff, 2),
                 'Average Speed (km/h)': round(avg_speed, 2),
                 'Heading': self.get_heading(curr_record['Location']['Angle']),
                 'Movement Status': self.get_movement_status(curr_record['Location']['Speed']),
+                'Estimated Fuel Consumption (L)': round(distance * 0.3, 2)
             }
 
-            # Añadir estimación de consumo de combustible
-            curr_record['Fleet Data']['Estimated Fuel Consumption (L)'] = round(distance * 0.3, 2)
-
-            # Verificar alertas
             curr_record['Alerts'] = self.check_for_alerts(curr_record, prev_record)
 
 
