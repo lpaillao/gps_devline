@@ -4,6 +4,7 @@ import struct
 from threading import Thread
 from utils.decoder import Decoder
 from data.data_manager import DataManager
+from api.api import emit_gps_update
 
 class ClientHandler(Thread):
     def __init__(self, conn, addr):
@@ -39,12 +40,12 @@ class ClientHandler(Thread):
             raise Exception("Authentication failed")
 
     def handle_data(self):
-        logging.info("Waiting for GPS data...")
+        logging.info("Esperando datos GPS...")
 
         try:
             buff = self.conn.recv(8192)
             received = binascii.hexlify(buff).decode()
-            logging.debug(f"Received GPS data: {received}")
+            logging.debug(f"Datos GPS recibidos: {received}")
 
             if len(received) > 8:
                 decoder = Decoder(payload=received, imei=self.imei)
@@ -53,13 +54,17 @@ class ClientHandler(Thread):
                 if records:
                     DataManager.save_data(self.imei, records)
                     self.conn.send(struct.pack("!L", len(records)))
-                    logging.info(f"Processed {len(records)} records from IMEI: {self.imei}")
+                    logging.info(f"Procesados {len(records)} registros del IMEI: {self.imei}")
+                    
+                    # Emitir la última ubicación a través de WebSocket
+                    latest_location = records[-1]
+                    emit_gps_update(self.imei, latest_location)
                 else:
-                    logging.warning("No valid records decoded from the GPS data")
+                    logging.warning("No se decodificaron registros válidos de los datos GPS")
                     self.conn.send(struct.pack("!L", 0))
             else:
-                logging.warning("No valid GPS data received")
+                logging.warning("No se recibieron datos GPS válidos")
                 self.conn.send(struct.pack("!L", 0))
         except Exception as e:
-            logging.error(f"Error handling data: {e}")
+            logging.error(f"Error al manejar los datos: {e}")
             self.conn.send(struct.pack("!L", 0))

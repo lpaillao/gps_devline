@@ -1,10 +1,11 @@
 from flask import Flask, jsonify, request
+from flask_socketio import SocketIO, emit
 from data.data_manager import DataManager
 from config import API_HOST, API_PORT
 from datetime import datetime, timedelta
 
 app = Flask(__name__)
-
+socketio = SocketIO(app, cors_allowed_origins="*")
 @app.route('/api/gps/<imei>')
 def get_gps_data(imei):
     limit = request.args.get('limit', default=100, type=int)
@@ -47,3 +48,22 @@ def get_device_count():
 
 def start_api():
     app.run(host=API_HOST, port=API_PORT)
+
+@socketio.on('connect')
+def handle_connect():
+    print('Cliente conectado')
+
+@socketio.on('disconnect')
+def handle_disconnect():
+    print('Cliente desconectado')
+
+@socketio.on('subscribe')
+def handle_subscribe(imei):
+    print(f'Cliente suscrito al IMEI: {imei}')
+    socketio.emit('subscribed', {'imei': imei}, room=request.sid)
+
+def emit_gps_update(imei, data):
+    socketio.emit('gps_update', {'imei': imei, 'data': data})
+
+def start_api():
+    socketio.run(app, host=API_HOST, port=API_PORT)

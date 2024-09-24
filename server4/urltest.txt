@@ -1,0 +1,5 @@
+http://167.71.106.231:5000/api/device_count
+http://167.71.106.231:5000/api/connected_devices
+http://167.71.106.231:5000/api/gps/867060034086286
+http://167.71.106.231:5000/api/gps/867060034086286/latest
+http://167.71.106.231:5000/api/gps/867060034086286/history?start_date=2024-09-01&end_date=2024-09-31&limit=500

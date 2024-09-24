@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rastreador GPS en Tiempo Real</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+    <style>
+        #map { height: 400px; width: 100%; }
+        #status { margin-top: 10px; }
+    </style>
+</head>
+<body>
+    <h1>Rastreador GPS en Tiempo Real</h1>
+    <div>
+        <label for="imeiInput">IMEI del dispositivo:</label>
+        <input type="text" id="imeiInput" placeholder="Ingrese el IMEI">
+        <button onclick="subscribeToIMEI()">Suscribirse</button>
+    </div>
+    <div id="map"></div>
+    <div id="status"></div>
+
+    <script>
+        const socket = io('http://167.71.106.231:5000');
+        let map, marker;
+        let currentIMEI = null;
+
+        // Inicializar el mapa
+        function initMap() {
+            map = L.map('map').setView([0, 0], 2);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap contributors'
+            }).addTo(map);
+        }
+
+        // Suscribirse a un IMEI
+        function subscribeToIMEI() {
+            const imei = document.getElementById('imeiInput').value;
+            if (imei) {
+                currentIMEI = imei;
+                socket.emit('subscribe', imei);
+                updateStatus(`Suscrito al IMEI: ${imei}`);
+            } else {
+                updateStatus('Por favor, ingrese un IMEI válido');
+            }
+        }
+
+        // Actualizar el estado en la página
+        function updateStatus(message) {
+            document.getElementById('status').innerText = message;
+        }
+
+        // Manejar la actualización GPS
+        function handleGPSUpdate(data) {
+            if (data.imei === currentIMEI) {
+                const { Latitude, Longitude } = data.data.Location;
+                updateMap(Latitude, Longitude);
+                updateStatus(`Última actualización: Lat ${Latitude}, Lon ${Longitude}`);
+            }
+        }
+
+        // Actualizar la posición en el mapa
+        function updateMap(lat, lon) {
+            if (!map) initMap();
+            
+            if (!marker) {
+                marker = L.marker([lat, lon]).addTo(map);
+            } else {
+                marker.setLatLng([lat, lon]);
+            }
+            map.setView([lat, lon], 13);
+        }
+
+        // Eventos de Socket.IO
+        socket.on('connect', () => updateStatus('Conectado al servidor'));
+        socket.on('disconnect', () => updateStatus('Desconectado del servidor'));
+        socket.on('subscribed', (data) => updateStatus(`Suscrito al IMEI: ${data.imei}`));
+        socket.on('gps_update', handleGPSUpdate);
+
+        // Inicializar el mapa al cargar la página
+        window.onload = initMap;
+    </script>
+</body>
+</html>
