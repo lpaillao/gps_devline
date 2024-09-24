@@ -3,201 +3,199 @@ import logging
 from datetime import datetime, timedelta
 
 class Database:
-    def __init__(self, archivo_db):
-        self.archivo_db = archivo_db
-        self.crear_tablas()
+    def __init__(self, db_file):
+        self.db_file = db_file
+        self.create_tables()
 
-    def crear_tablas(self):
-        conn = sqlite3.connect(self.archivo_db)
+    def create_tables(self):
+        conn = sqlite3.connect(self.db_file)
         cursor = conn.cursor()
         cursor.execute('''
-            CREATE TABLE IF NOT EXISTS datos_gps (
+            CREATE TABLE IF NOT EXISTS gps_data (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 imei TEXT,
-                marca_tiempo DATETIME,
-                latitud REAL,
-                longitud REAL,
-                altitud INTEGER,
-                angulo INTEGER,
-                satelites INTEGER,
-                velocidad INTEGER,
-                prioridad INTEGER,
-                datos_io TEXT
+                timestamp DATETIME,
+                latitude REAL,
+                longitude REAL,
+                altitude INTEGER,
+                angle INTEGER,
+                satellites INTEGER,
+                speed INTEGER,
+                priority INTEGER,
+                io_data TEXT
             )
         ''')
         cursor.execute('''
-            CREATE TABLE IF NOT EXISTS conexiones_gps (
+            CREATE TABLE IF NOT EXISTS gps_connections (
                 imei TEXT PRIMARY KEY,
-                ultima_conexion DATETIME,
-                en_linea BOOLEAN
+                last_connected DATETIME,
+                is_online BOOLEAN
             )
         ''')
         cursor.execute('''
-            CREATE TABLE IF NOT EXISTS geovallas (
+            CREATE TABLE IF NOT EXISTS geofences (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                nombre TEXT,
-                latitud REAL,
-                longitud REAL,
-                radio REAL
+                name TEXT,
+                latitude REAL,
+                longitude REAL,
+                radius REAL
             )
         ''')
         conn.commit()
         conn.close()
 
-    def agregar_geovalla(self, nombre, latitud, longitud, radio):
-        conn = sqlite3.connect(self.archivo_db)
+    def add_geofence(self, name, latitude, longitude, radius):
+        conn = sqlite3.connect(self.db_file)
         cursor = conn.cursor()
         cursor.execute('''
-            INSERT INTO geovallas (nombre, latitud, longitud, radio)
+            INSERT INTO geofences (name, latitude, longitude, radius)
             VALUES (?, ?, ?, ?)
-        ''', (nombre, latitud, longitud, radio))
+        ''', (name, latitude, longitude, radius))
         conn.commit()
         conn.close()
 
-    def obtener_geovallas(self):
-        conn = sqlite3.connect(self.archivo_db)
+    def get_geofences(self):
+        conn = sqlite3.connect(self.db_file)
         cursor = conn.cursor()
-        cursor.execute('SELECT * FROM geovallas')
-        resultados = cursor.fetchall()
+        cursor.execute('SELECT * FROM geofences')
+        results = cursor.fetchall()
         conn.close()
-        return [{'id': r[0], 'nombre': r[1], 'latitud': r[2], 'longitud': r[3], 'radio': r[4]} for r in resultados]
+        return [{'id': r[0], 'name': r[1], 'latitude': r[2], 'longitude': r[3], 'radius': r[4]} for r in results]
 
-    def insertar_datos_gps(self, datos):
-        conn = sqlite3.connect(self.archivo_db)
+    def insert_gps_data(self, data):
+        conn = sqlite3.connect(self.db_file)
         cursor = conn.cursor()
         cursor.execute('''
-            INSERT INTO datos_gps (imei, marca_tiempo, latitud, longitud, altitud, angulo, satelites, velocidad, prioridad, datos_io)
+            INSERT INTO gps_data (imei, timestamp, latitude, longitude, altitude, angle, satellites, speed, priority, io_data)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ''', (
-            datos['IMEI'],
-            datos['DateTime'],
-            datos['GPS Data']['Latitude'],
-            datos['GPS Data']['Longitude'],
-            datos['GPS Data']['Altitude'],
-            datos['GPS Data']['Angle'],
-            datos['GPS Data']['Satellites'],
-            datos['GPS Data']['Speed'],
-            datos['Priority'],
-            str(datos['I/O Data'])
+            data['IMEI'],
+            data['DateTime'],
+            data['GPS Data']['Latitude'],
+            data['GPS Data']['Longitude'],
+            data['GPS Data']['Altitude'],
+            data['GPS Data']['Angle'],
+            data['GPS Data']['Satellites'],
+            data['GPS Data']['Speed'],
+            data['Priority'],
+            str(data['I/O Data'])
         ))
         conn.commit()
         conn.close()
 
-    def actualizar_conexion_gps(self, imei, en_linea):
-        conn = sqlite3.connect(self.archivo_db)
+    def update_gps_connection(self, imei, is_online):
+        conn = sqlite3.connect(self.db_file)
         cursor = conn.cursor()
         cursor.execute('''
-            INSERT OR REPLACE INTO conexiones_gps (imei, ultima_conexion, en_linea)
+            INSERT OR REPLACE INTO gps_connections (imei, last_connected, is_online)
             VALUES (?, ?, ?)
-        ''', (imei, datetime.now(), en_linea))
+        ''', (imei, datetime.now(), is_online))
         conn.commit()
         conn.close()
 
-    def obtener_conteo_gps_en_linea(self):
-        conn = sqlite3.connect(self.archivo_db)
+    def get_online_gps_count(self):
+        conn = sqlite3.connect(self.db_file)
         cursor = conn.cursor()
-        cursor.execute('SELECT COUNT(*) FROM conexiones_gps WHERE en_linea = 1')
-        conteo = cursor.fetchone()[0]
+        cursor.execute('SELECT COUNT(*) FROM gps_connections WHERE is_online = 1')
+        count = cursor.fetchone()[0]
         conn.close()
-        return conteo
+        return count
 
-    def obtener_conexiones_recientes(self, limite=10):
-        conn = sqlite3.connect(self.archivo_db)
+    def get_recent_connections(self, limit=10):
+        conn = sqlite3.connect(self.db_file)
         cursor = conn.cursor()
         cursor.execute('''
-            SELECT imei, ultima_conexion, en_linea 
-            FROM conexiones_gps 
-            ORDER BY ultima_conexion DESC 
+            SELECT imei, last_connected, is_online 
+            FROM gps_connections 
+            ORDER BY last_connected DESC 
             LIMIT ?
-        ''', (limite,))
-        resultados = cursor.fetchall()
+        ''', (limit,))
+        results = cursor.fetchall()
         conn.close()
-        return [{'imei': r[0], 'ultima_conexion': r[1], 'en_linea': bool(r[2])} for r in resultados]
+        return [{'imei': r[0], 'last_connected': r[1], 'is_online': bool(r[2])} for r in results]
 
-    def obtener_ultimos_datos_gps(self, imei):
-        conn = sqlite3.connect(self.archivo_db)
+    def get_latest_gps_data(self, imei):
+        conn = sqlite3.connect(self.db_file)
         cursor = conn.cursor()
         cursor.execute('''
-            SELECT * FROM datos_gps 
+            SELECT * FROM gps_data 
             WHERE imei = ? 
-            ORDER BY marca_tiempo DESC 
+            ORDER BY timestamp DESC 
             LIMIT 1
         ''', (imei,))
-        resultado = cursor.fetchone()
+        result = cursor.fetchone()
         conn.close()
-        if resultado:
+        if result:
             return {
-                'id': resultado[0],
-                'imei': resultado[1],
-                'marca_tiempo': resultado[2],
-                'latitud': resultado[3],
-                'longitud': resultado[4],
-                'altitud': resultado[5],
-                'angulo': resultado[6],
-                'satelites': resultado[7],
-                'velocidad': resultado[8],
-                'prioridad': resultado[9],
-                'datos_io': resultado[10]
+                'id': result[0],
+                'imei': result[1],
+                'timestamp': result[2],
+                'latitude': result[3],
+                'longitude': result[4],
+                'altitude': result[5],
+                'angle': result[6],
+                'satellites': result[7],
+                'speed': result[8],
+                'priority': result[9],
+                'io_data': result[10]
             }
         return None
-
-    def obtener_historial_ruta(self, imei, tiempo_inicio, tiempo_fin):
-        conn = sqlite3.connect(self.archivo_db)
+    def get_route_history(self, imei, start_time, end_time):
+        conn = sqlite3.connect(self.db_file)
         cursor = conn.cursor()
         cursor.execute('''
-            SELECT marca_tiempo, latitud, longitud, velocidad
-            FROM datos_gps
-            WHERE imei = ? AND marca_tiempo BETWEEN ? AND ?
-            ORDER BY marca_tiempo
-        ''', (imei, tiempo_inicio, tiempo_fin))
-        resultados = cursor.fetchall()
+            SELECT timestamp, latitude, longitude, speed
+            FROM gps_data
+            WHERE imei = ? AND timestamp BETWEEN ? AND ?
+            ORDER BY timestamp
+        ''', (imei, start_time, end_time))
+        results = cursor.fetchall()
         conn.close()
-        return [{'marca_tiempo': r[0], 'latitud': r[1], 'longitud': r[2], 'velocidad': r[3]} for r in resultados]
+        return [{'timestamp': r[0], 'latitude': r[1], 'longitude': r[2], 'speed': r[3]} for r in results]
     
-    def obtener_distancia_recorrida(self, imei, tiempo_inicio, tiempo_fin):
-        # Implementar cálculo de distancia basado en coordenadas GPS
+    def get_distance_traveled(self, imei, start_time, end_time):
+        # Implement distance calculation based on GPS coordinates
         pass
 
-    def obtener_tiempo_en_movimiento(self, imei, tiempo_inicio, tiempo_fin):
-        conn = sqlite3.connect(self.archivo_db)
+    def get_time_in_motion(self, imei, start_time, end_time):
+        conn = sqlite3.connect(self.db_file)
         cursor = conn.cursor()
         cursor.execute('''
-            SELECT COUNT(*) * 5 / 60.0  -- Asumiendo puntos de datos cada 5 segundos, convertir a horas
-            FROM datos_gps
-            WHERE imei = ? AND marca_tiempo BETWEEN ? AND ? AND velocidad > 0
-        ''', (imei, tiempo_inicio, tiempo_fin))
-        resultado = cursor.fetchone()[0]
+            SELECT COUNT(*) * 5 / 60.0  -- Assuming data points every 5 seconds, convert to hours
+            FROM gps_data
+            WHERE imei = ? AND timestamp BETWEEN ? AND ? AND speed > 0
+        ''', (imei, start_time, end_time))
+        result = cursor.fetchone()[0]
         conn.close()
-        return resultado
+        return result
 
-    def obtener_conteo_paradas(self, imei, tiempo_inicio, tiempo_fin, duracion_parada=300):  # duracion_parada en segundos
-        # Implementar lógica para contar paradas (períodos sin movimiento más largos que duracion_parada)
+    def get_stop_count(self, imei, start_time, end_time, stop_duration=300):  # stop_duration in seconds
+        # Implement logic to count stops (periods of no movement longer than stop_duration)
         pass
-
-    def obtener_todos_los_ultimos_datos_gps(self):
-        conn = sqlite3.connect(self.archivo_db)
+    def get_all_latest_gps_data(self):
+        conn = sqlite3.connect(self.db_file)
         cursor = conn.cursor()
         cursor.execute('''
             SELECT t1.*
-            FROM datos_gps t1
+            FROM gps_data t1
             INNER JOIN (
-                SELECT imei, MAX(marca_tiempo) as max_marca_tiempo
-                FROM datos_gps
+                SELECT imei, MAX(timestamp) as max_timestamp
+                FROM gps_data
                 GROUP BY imei
-            ) t2 ON t1.imei = t2.imei AND t1.marca_tiempo = t2.max_marca_tiempo
+            ) t2 ON t1.imei = t2.imei AND t1.timestamp = t2.max_timestamp
         ''')
-        resultados = cursor.fetchall()
+        results = cursor.fetchall()
         conn.close()
         
         return [{
             'imei': r[1],
-            'marca_tiempo': r[2],
-            'latitud': r[3],
-            'longitud': r[4],
-            'altitud': r[5],
-            'angulo': r[6],
-            'satelites': r[7],
-            'velocidad': r[8],
-            'prioridad': r[9],
-            'datos_io': r[10]
-        } for r in resultados]
+            'timestamp': r[2],
+            'latitude': r[3],
+            'longitude': r[4],
+            'altitude': r[5],
+            'angle': r[6],
+            'satellites': r[7],
+            'speed': r[8],
+            'priority': r[9],
+            'io_data': r[10]
+        } for r in results]
