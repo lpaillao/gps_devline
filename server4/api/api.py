@@ -3,8 +3,10 @@ from flask_socketio import SocketIO, emit
 from data.data_manager import DataManager
 from config import API_HOST, API_PORT
 from datetime import datetime, timedelta
+from flask_cors import CORS
 
 app = Flask(__name__)
+CORS(app)  # Esto habilita CORS para todas las rutas
 socketio = SocketIO(app, cors_allowed_origins="*")
 @app.route('/api/gps/<imei>')
 def get_gps_data(imei):

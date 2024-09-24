@@ -11,6 +11,9 @@ const DispositivoGPSForm = ({ dispositivo, onSubmit, onCancel }) => {
     tipo_gps_id: '',
   });
   const [tiposGPS, setTiposGPS] = useState([]);
+  const [connectedIMEIs, setConnectedIMEIs] = useState([]);
+  const [filteredIMEIs, setFilteredIMEIs] = useState([]);
+  const [isManualIMEI, setIsManualIMEI] = useState(false);
   const { text, bg } = useTheme();
 
   useEffect(() => {
@@ -18,6 +21,7 @@ const DispositivoGPSForm = ({ dispositivo, onSubmit, onCancel }) => {
       setFormData(dispositivo);
     }
     fetchTiposGPS();
+    fetchConnectedIMEIs();
   }, [dispositivo]);
 
   const fetchTiposGPS = async () => {
@@ -31,8 +35,32 @@ const DispositivoGPSForm = ({ dispositivo, onSubmit, onCancel }) => {
     }
   };
 
+  const fetchConnectedIMEIs = async () => {
+    try {
+      const response = await axios.get('http://167.71.106.231:5000/api/connected_devices');
+      setConnectedIMEIs(response.data);
+      setFilteredIMEIs(response.data);
+    } catch (error) {
+      console.error('Error fetching connected IMEIs:', error);
+    }
+  };
+
   const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+    setFormData({ ...formData, [name]: value });
+    if (name === 'imei') {
+      filterIMEIs(value);
+    }
+  };
+
+  const filterIMEIs = (value) => {
+    const filtered = connectedIMEIs.filter(imei => imei.includes(value));
+    setFilteredIMEIs(filtered);
+  };
+
+  const handleIMEISelect = (imei) => {
+    setFormData({ ...formData, imei });
+    setFilteredIMEIs([]);
   };
 
   const handleSubmit = (e) => {
@@ -50,15 +78,38 @@ const DispositivoGPSForm = ({ dispositivo, onSubmit, onCancel }) => {
           <label htmlFor="imei" className={`block ${text.secondary} font-medium mb-1`}>
             IMEI
           </label>
-          <input
-            type="text"
-            id="imei"
-            name="imei"
-            value={formData.imei}
-            onChange={handleChange}
-            required
-            className={`w-full px-3 py-2 border rounded-md ${bg.input} ${text.primary}`}
-          />
+          <div className="relative">
+            <input
+              type="text"
+              id="imei"
+              name="imei"
+              value={formData.imei}
+              onChange={handleChange}
+              required
+              className={`w-full px-3 py-2 border rounded-md ${bg.input} ${text.primary}`}
+              placeholder={isManualIMEI ? "Enter IMEI manually" : "Select or type IMEI"}
+            />
+            <button
+              type="button"
+              onClick={() => setIsManualIMEI(!isManualIMEI)}
+              className={`absolute right-2 top-2 px-2 py-1 text-sm ${bg.secondary} rounded`}
+            >
+              {isManualIMEI ? "Select" : "Manual"}
+            </button>
+          </div>
+          {!isManualIMEI && filteredIMEIs.length > 0 && (
+            <ul className={`mt-1 max-h-40 overflow-y-auto border rounded-md ${bg.input}`}>
+              {filteredIMEIs.map(imei => (
+                <li
+                  key={imei}
+                  onClick={() => handleIMEISelect(imei)}
+                  className={`px-3 py-2 cursor-pointer hover:${bg.secondary}`}
+                >
+                  {imei}
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
         <div>
           <label htmlFor="modelo" className={`block ${text.secondary} font-medium mb-1`}>

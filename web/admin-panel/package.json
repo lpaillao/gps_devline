@@ -47,5 +47,6 @@
     "autoprefixer": "^10.4.20",
     "postcss": "^8.4.45",
     "tailwindcss": "^3.4.11"
-  }
+  },
+  "proxy": "http://167.71.106.231:5000"
 }
