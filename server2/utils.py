@@ -6,19 +6,14 @@ def is_port_in_use(port):
         return s.connect_ex(('localhost', port)) == 0
 
 def format_gps_data(gps_data):
-    return f"  Latitude: {gps_data['Latitude']:.6f}\n" \
-           f"  Longitude: {gps_data['Longitude']:.6f}\n" \
-           f"  Altitude: {gps_data['Altitude']} m\n" \
-           f"  Angle: {gps_data['Angle']}°\n" \
-           f"  Satellites: {gps_data['Satellites']}\n" \
-           f"  Speed: {gps_data['Speed']} km/h"
+    return f"Latitud: {gps_data['Latitud']:.6f}\n" \
+           f"Longitud: {gps_data['Longitud']:.6f}\n" \
+           f"Altitud: {gps_data['Altitud']} m\n" \
+           f"Ángulo: {gps_data['Ángulo']}°\n" \
+           f"Satélites: {gps_data['Satélites']}\n" \
+           f"Velocidad: {gps_data['Velocidad']} km/h"
 
 def format_io_data(io_data):
-    formatted = f"  I/O Event Code: {io_data['I/O Event Code']}\n" \
-                f"  Number of I/O Elements: {io_data['Number of I/O Elements']}\n" \
-                "  I/O Elements:"
-    
-    for code, value in io_data['I/O Elements'].items():
-        formatted += f"\n    Code {code}: {value}"
-    
-    return formatted
+    return f"Código de Evento E/S: {io_data['Código de Evento E/S']}\n" \
+           f"Número de Elementos E/S: {io_data['Número de Elementos E/S']}\n" \
+           f"Elementos E/S: {io_data['Elementos E/S']}"

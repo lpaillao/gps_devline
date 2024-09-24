@@ -62,7 +62,6 @@ class Decoder:
             "Datos GPS": datos_gps,
             "Datos E/S": datos_io
         }
-
     def _decodificar_marca_tiempo(self, marca_tiempo_hex):
         marca_tiempo_int = int(marca_tiempo_hex, 16)
         return datetime.utcfromtimestamp(marca_tiempo_int/1000)

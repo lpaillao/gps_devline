@@ -70,13 +70,13 @@ class ClientHandler(Thread):
             print(f"\n{'='*40}")
             print(f"Registro GPS {i} - IMEI: {record['IMEI']}")
             print(f"{'='*40}")
-            print(f"Marca de tiempo: {record['DateTime']}")
-            print(f"Prioridad: {record['Priority']}")
+            print(f"Marca de tiempo: {record['FechaHora']}")
+            print(f"Prioridad: {record['Prioridad']}")
             
             print("\nDatos GPS:")
-            print(format_gps_data(record['GPS Data']))
+            print(format_gps_data(record['Datos GPS']))
             
             print("\nDatos de E/S:")
-            print(format_io_data(record['I/O Data']))
+            print(format_io_data(record['Datos E/S']))
             
             print(f"{'='*40}\n")
