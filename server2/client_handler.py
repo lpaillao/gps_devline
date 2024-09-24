@@ -51,8 +51,8 @@ class ClientHandler(Thread):
         received = binascii.hexlify(buff)
         logging.debug(f"Datos GPS recibidos: {received}")
         if len(received) > 2:
-            decoder = Decoder(payload=received, imei=self.imei)
-            records = decoder.decode_data()
+            decoder = Decoder(carga_util=received, imei=self.imei)
+            records = decoder.decodificar_datos()
             if records:
                 self.data_manager.save_data(self.imei, records)
                 self.display_records(records)
