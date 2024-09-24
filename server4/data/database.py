@@ -71,6 +71,59 @@ class Database:
             return []
 
     @classmethod
+    def get_latest_location(cls, imei):
+        try:
+            conn = cls.get_connection()
+            cursor = conn.cursor()
+            cursor.execute('''
+                SELECT * FROM gps_data
+                WHERE imei = ?
+                ORDER BY timestamp DESC
+                LIMIT 1
+            ''', (imei,))
+            return dict(cursor.fetchone())
+        except sqlite3.Error as e:
+            logging.error(f"Error fetching latest location: {e}")
+            return None
+
+    @classmethod
+    def get_gps_history(cls, imei, start_date, end_date, limit=1000):
+        try:
+            conn = cls.get_connection()
+            cursor = conn.cursor()
+            cursor.execute('''
+                SELECT * FROM gps_data
+                WHERE imei = ? AND timestamp BETWEEN ? AND ?
+                ORDER BY timestamp DESC
+                LIMIT ?
+            ''', (imei, start_date, end_date, limit))
+            return [dict(row) for row in cursor.fetchall()]
+        except sqlite3.Error as e:
+            logging.error(f"Error fetching GPS history: {e}")
+            return []
+
+    @classmethod
+    def get_gps_summary(cls, imei):
+        try:
+            conn = cls.get_connection()
+            cursor = conn.cursor()
+            cursor.execute('''
+                SELECT 
+                    COUNT(*) as total_records,
+                    MIN(timestamp) as first_record,
+                    MAX(timestamp) as last_record,
+                    AVG(speed) as avg_speed,
+                    MAX(speed) as max_speed,
+                    AVG(altitude) as avg_altitude
+                FROM gps_data
+                WHERE imei = ?
+            ''', (imei,))
+            return dict(cursor.fetchone())
+        except sqlite3.Error as e:
+            logging.error(f"Error fetching GPS summary: {e}")
+            return {}
+
+    @classmethod
     def get_connected_devices(cls):
         try:
             conn = cls.get_connection()

@@ -16,6 +16,18 @@ class DataManager:
         return Database.get_gps_data_by_imei(imei, limit)
 
     @staticmethod
+    def get_latest_location(imei):
+        return Database.get_latest_location(imei)
+
+    @staticmethod
+    def get_gps_history(imei, start_date, end_date, limit=1000):
+        return Database.get_gps_history(imei, start_date, end_date, limit)
+
+    @staticmethod
+    def get_gps_summary(imei):
+        return Database.get_gps_summary(imei)
+
+    @staticmethod
     def get_connected_devices():
         return Database.get_connected_devices()
 
