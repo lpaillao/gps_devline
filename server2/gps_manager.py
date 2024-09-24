@@ -6,7 +6,7 @@ class GPSManager:
         self.db = Database(DB_FILE)
 
     def connect(self, imei):
-        self.db.actualizar_conexion_gps(imei, True)
+        self.db.update_gps_connection(imei, True)
 
     def disconnect(self, imei):
-        self.db.actualizar_conexion_gps(imei, False)
+        self.db.update_gps_connection(imei, False)
