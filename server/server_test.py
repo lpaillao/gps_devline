@@ -1,6 +1,6 @@
 import socket
 from threading import Thread
-from datetime import datetime
+from datetime import datetime, timezone
 import struct
 import binascii
 import json
@@ -41,16 +41,8 @@ class Decoder:
         try:
             logging.debug(f"Raw payload: {self.payload}")
 
-            # Parse the preamble (first 4 bytes)
-            if len(self.payload) < self.index + 8:
-                raise ValueError("Not enough data for preamble and data length")
-            
-            preamble = self.payload[self.index:self.index + 8]
-            self.index += 8  # Move the index forward
-            
-            # Parse the data length (next 4 bytes)
-            data_length = struct.unpack('>I', bytes.fromhex(self.payload[self.index:self.index + 8]))[0]
-            self.index += 8
+            # Skip preamble and data length
+            self.index = 16  # 8 bytes for preamble, 8 bytes for data length
             
             # Parse the codec ID (next 1 byte)
             codec_id = int(self.payload[self.index:self.index + 2], 16)
@@ -71,7 +63,7 @@ class Decoder:
             # Verify number of records at the end
             num_of_data_end = int(self.payload[-4:-2], 16)
             if num_of_data != num_of_data_end:
-                raise ValueError(f"Number of records mismatch: start={num_of_data}, end={num_of_data_end}")
+                logging.warning(f"Number of records mismatch: start={num_of_data}, end={num_of_data_end}")
 
             return records
 
@@ -82,7 +74,7 @@ class Decoder:
     def parse_avl_record(self):
         # Parse the timestamp (next 8 bytes)
         timestamp = struct.unpack('>Q', bytes.fromhex(self.payload[self.index:self.index + 16]))[0]
-        timestamp = datetime.utcfromtimestamp(timestamp / 1000)
+        timestamp = datetime.fromtimestamp(timestamp / 1000, timezone.utc)
         self.index += 16
 
         # Parse the priority (next 1 byte)
@@ -143,7 +135,6 @@ class Decoder:
                 io_records[io_name] = io_value
 
         return io_records
-
 class DataManager:
     def __init__(self):
         self.ensure_data_dir()
