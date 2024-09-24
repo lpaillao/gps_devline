@@ -1,4 +1,3 @@
-# server2/api.py
 from flask import Flask, jsonify, request
 from flask_socketio import SocketIO, emit, join_room, leave_room
 from database import Database
@@ -11,26 +10,22 @@ app = Flask(__name__)
 socketio = SocketIO(app, cors_allowed_origins="*")
 db = Database(os.path.join(DATA_DIR, 'gps.db'))
 
-# Importar AlertSystem después de definir socketio
-#from alerts import AlertSystem
-# alert_system = AlertSystem(socketio)
-
 # Diccionario para almacenar sesiones de seguimiento activas
 active_tracking = {}
 
 @app.route('/gps/count', methods=['GET'])
 def get_online_gps_count():
-    count = db.get_online_gps_count()
+    count = db.obtener_conteo_gps_en_linea()
     return jsonify({'conteo_gps_en_linea': count})
 
 @app.route('/gps/recent', methods=['GET'])
 def get_recent_connections():
-    connections = db.get_recent_connections()
+    connections = db.obtener_conexiones_recientes()
     return jsonify({'conexiones_recientes': connections})
 
 @app.route('/gps/<imei>/latest', methods=['GET'])
 def get_latest_gps_data(imei):
-    data = db.get_latest_gps_data(imei)
+    data = db.obtener_ultimos_datos_gps(imei)
     if data:
         return jsonify(data)
     return jsonify({'error': 'No se encontraron datos para este IMEI'}), 404
@@ -45,7 +40,7 @@ def track_gps(imei):
 
 def send_updates(imei):
     while imei in active_tracking:
-        latest_data = db.get_latest_gps_data(imei)
+        latest_data = db.obtener_ultimos_datos_gps(imei)
         if latest_data:
             socketio.emit('actualizacion_gps', latest_data, room=imei)
         socketio.sleep(5)  # Enviar actualizaciones cada 5 segundos
@@ -81,18 +76,18 @@ def on_leave(data):
 def get_route_history(imei):
     start_time = request.args.get('inicio', (datetime.now() - timedelta(hours=24)).isoformat())
     end_time = request.args.get('fin', datetime.now().isoformat())
-    history = db.get_route_history(imei, start_time, end_time)
+    history = db.obtener_historial_ruta(imei, start_time, end_time)
     return jsonify(history)
 
 @app.route('/geofence', methods=['POST'])
 def add_geofence():
     data = request.json
-    db.add_geofence(data['nombre'], data['latitud'], data['longitud'], data['radio'])
+    db.agregar_geovalla(data['nombre'], data['latitud'], data['longitud'], data['radio'])
     return jsonify({"mensaje": "Geovalla añadida con éxito", "estado": "éxito"})
 
 @app.route('/geofences', methods=['GET'])
 def get_geofences():
-    geofences = db.get_geofences()
+    geofences = db.obtener_geovallas()
     return jsonify(geofences)
 
 @app.route('/gps/<imei>/analytics', methods=['GET'])
@@ -100,9 +95,9 @@ def get_gps_analytics(imei):
     start_time = request.args.get('inicio', (datetime.now() - timedelta(hours=24)).isoformat())
     end_time = request.args.get('fin', datetime.now().isoformat())
     
-    distance = db.get_distance_traveled(imei, start_time, end_time)
-    time_in_motion = db.get_time_in_motion(imei, start_time, end_time)
-    stop_count = db.get_stop_count(imei, start_time, end_time)
+    distance = db.obtener_distancia_recorrida(imei, start_time, end_time)
+    time_in_motion = db.obtener_tiempo_en_movimiento(imei, start_time, end_time)
+    stop_count = db.obtener_conteo_paradas(imei, start_time, end_time)
 
     return jsonify({
         'distancia_recorrida': distance,
@@ -112,7 +107,6 @@ def get_gps_analytics(imei):
 
 @socketio.on('connect')
 def handle_connect():
-    #alert_system.start()
     print('connected')
 
 def start_api():
