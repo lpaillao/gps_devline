@@ -1,135 +1,135 @@
-# Decoder.py
+# decoder.py
 from datetime import datetime
 import logging
 
 class Decoder:
-    def __init__(self, carga_util, imei):
-        self.carga_util = carga_util
+    def __init__(self, payload, imei):
+        self.payload = payload
         self.imei = imei
         self.precision = 10000000.0
 
-    def decodificar_datos(self):
-        logging.debug(f"Carga útil sin procesar: {self.carga_util}")
+    def decode_data(self):
+        logging.debug(f"Raw payload: {self.payload}")
 
-        if len(self.carga_util) < 20:
-            logging.warning("Carga útil demasiado corta para contener datos válidos")
+        if len(self.payload) < 20:
+            logging.warning("Payload too short to contain valid data")
             return []
 
-        numero_de_registros = int(self.carga_util[18:20], 16)
-        numero_de_registros_final = int(self.carga_util[-10:-8], 16) if len(self.carga_util) >= 10 else 0
-        logging.info(f"Número de registros: {numero_de_registros}, Número final: {numero_de_registros_final}")
+        number_of_rec = int(self.payload[18:20], 16)
+        number_of_rec_end = int(self.payload[-10:-8], 16) if len(self.payload) >= 10 else 0
+        logging.info(f"Number of records: {number_of_rec}, End number: {number_of_rec_end}")
 
-        datos_avl = self.carga_util[20:-10]
-        logging.debug(f"Datos AVL: {datos_avl}")
+        avl_data = self.payload[20:-10]
+        logging.debug(f"AVL data: {avl_data}")
 
-        registros = []
-        if numero_de_registros == numero_de_registros_final:
-            posicion = 0
-            for _ in range(numero_de_registros):
-                if posicion >= len(datos_avl):
-                    logging.warning(f"Fin inesperado de datos en la posición {posicion}")
+        records = []
+        if number_of_rec == number_of_rec_end:
+            position = 0
+            for _ in range(number_of_rec):
+                if position >= len(avl_data):
+                    logging.warning(f"Unexpected end of data at position {position}")
                     break
                 try:
-                    registro = self._decodificar_registro_individual(datos_avl[posicion:])
-                    registros.append(registro)
-                    longitud_registro = self._obtener_longitud_registro(datos_avl[posicion:])
-                    if longitud_registro is None:
-                        logging.warning(f"No se puede determinar la longitud del registro en la posición {posicion}")
+                    record = self._decode_single_record(avl_data[position:])
+                    records.append(record)
+                    record_length = self._get_record_length(avl_data[position:])
+                    if record_length is None:
+                        logging.warning(f"Unable to determine record length at position {position}")
                         break
-                    posicion += longitud_registro
-                    logging.info(f"Registro decodificado: {registro}")
+                    position += record_length
+                    logging.info(f"Decoded record: {record}")
                 except Exception as e:
-                    logging.error(f"Error al decodificar el registro: {e}")
+                    logging.error(f"Error decoding record: {e}")
                     break
         else:
-            logging.warning(f"Discrepancia en el número de registros: inicio={numero_de_registros}, fin={numero_de_registros_final}")
+            logging.warning(f"Number of records mismatch: start={number_of_rec}, end={number_of_rec_end}")
 
-        return registros
+        return records
 
-    def _decodificar_registro_individual(self, datos_registro):
-        if len(datos_registro) < 46:
-            raise ValueError("Datos insuficientes para decodificar un registro individual")
+    def _decode_single_record(self, record_data):
+        if len(record_data) < 46:
+            raise ValueError("Insufficient data for decoding a single record")
 
-        marca_tiempo = self._decodificar_marca_tiempo(datos_registro[0:16])
-        prioridad = int(datos_registro[16:18], 16)
-        datos_gps = self._decodificar_datos_gps(datos_registro[18:46])
-        datos_io = self._decodificar_datos_io(datos_registro[46:])
+        timestamp = self._decode_timestamp(record_data[0:16])
+        priority = int(record_data[16:18], 16)
+        gps_data = self._decode_gps_data(record_data[18:46])
+        io_data = self._decode_io_data(record_data[46:])
 
         return {
             "IMEI": self.imei,
-            "FechaHora": marca_tiempo.isoformat(),
-            "Prioridad": prioridad,
-            "Datos GPS": datos_gps,
-            "Datos E/S": datos_io
+            "DateTime": timestamp.isoformat(),
+            "Priority": priority,
+            "GPS Data": gps_data,
+            "I/O Data": io_data
         }
 
-    def _decodificar_marca_tiempo(self, marca_tiempo_hex):
-        marca_tiempo_int = int(marca_tiempo_hex, 16)
-        return datetime.utcfromtimestamp(marca_tiempo_int/1000)
+    def _decode_timestamp(self, timestamp_hex):
+        timestamp_int = int(timestamp_hex, 16)
+        return datetime.utcfromtimestamp(timestamp_int/1000)
 
-    def _decodificar_datos_gps(self, datos_gps):
+    def _decode_gps_data(self, gps_data):
         return {
-            "Longitud": int(datos_gps[0:8], 16) / self.precision,
-            "Latitud": int(datos_gps[8:16], 16) / self.precision,
-            "Altitud": int(datos_gps[16:20], 16),
-            "Ángulo": int(datos_gps[20:24], 16),
-            "Satélites": int(datos_gps[24:26], 16),
-            "Velocidad": int(datos_gps[26:28], 16)
+            "Longitude": int(gps_data[0:8], 16) / self.precision,
+            "Latitude": int(gps_data[8:16], 16) / self.precision,
+            "Altitude": int(gps_data[16:20], 16),
+            "Angle": int(gps_data[20:24], 16),
+            "Satellites": int(gps_data[24:26], 16),
+            "Speed": int(gps_data[26:28], 16)
         }
 
-    def _decodificar_datos_io(self, datos_io):
-        if len(datos_io) < 4:
-            return {"Código de Evento E/S": 0, "Número de Elementos E/S": 0, "Elementos E/S": {}}
+    def _decode_io_data(self, io_data):
+        if len(io_data) < 4:
+            return {"I/O Event Code": 0, "Number of I/O Elements": 0, "I/O Elements": {}}
 
-        posicion = 0
-        codigo_evento_io = int(datos_io[posicion:posicion+2], 16)
-        posicion += 2
+        position = 0
+        io_event_code = int(io_data[position:position+2], 16)
+        position += 2
 
-        numero_elementos_io = int(datos_io[posicion:posicion+2], 16)
-        posicion += 2
+        number_of_io_elements = int(io_data[position:position+2], 16)
+        position += 2
 
-        elementos_io = {}
-        for tamano_bit in [1, 2, 4, 8]:
-            if posicion + 2 > len(datos_io):
+        io_elements = {}
+        for bit_size in [1, 2, 4, 8]:
+            if position + 2 > len(io_data):
                 break
-            num_elementos = int(datos_io[posicion:posicion+2], 16)
-            posicion += 2
-            for _ in range(num_elementos):
-                if posicion + 2 + 2*tamano_bit > len(datos_io):
+            num_elements = int(io_data[position:position+2], 16)
+            position += 2
+            for _ in range(num_elements):
+                if position + 2 + 2*bit_size > len(io_data):
                     break
-                codigo_io = int(datos_io[posicion:posicion+2], 16)
-                posicion += 2
-                valor_io = int(datos_io[posicion:posicion+2*tamano_bit], 16)
-                posicion += 2 * tamano_bit
-                elementos_io[codigo_io] = valor_io
+                io_code = int(io_data[position:position+2], 16)
+                position += 2
+                io_val = int(io_data[position:position+2*bit_size], 16)
+                position += 2 * bit_size
+                io_elements[io_code] = io_val
 
         return {
-            "Código de Evento E/S": codigo_evento_io,
-            "Número de Elementos E/S": numero_elementos_io,
-            "Elementos E/S": elementos_io
+            "I/O Event Code": io_event_code,
+            "Number of I/O Elements": number_of_io_elements,
+            "I/O Elements": io_elements
         }
 
-    def _obtener_longitud_registro(self, datos_registro):
-        if len(datos_registro) < 23:
+    def _get_record_length(self, record_data):
+        if len(record_data) < 23:
             return None
 
-        # Un registro individual consta de:
-        # 8 bytes (marca de tiempo) + 1 byte (prioridad) + 14 bytes (datos GPS) + datos E/S variables
-        inicio_datos_io = 23
-        if len(datos_registro) < inicio_datos_io + 4:
+        # A single record consists of:
+        # 8 bytes (timestamp) + 1 byte (priority) + 14 bytes (GPS data) + variable IO data
+        io_data_start = 23
+        if len(record_data) < io_data_start + 4:
             return None
 
-        elementos_evento_io = int(datos_registro[inicio_datos_io+2:inicio_datos_io+4], 16)
-        longitud_datos_io = 4  # Código de evento E/S (1 byte) + Número de elementos E/S (1 byte)
+        io_event_elements = int(record_data[io_data_start+2:io_data_start+4], 16)
+        io_data_length = 4  # IO event code (1 byte) + Number of IO elements (1 byte)
         
-        posicion = inicio_datos_io + 4
-        for tamano_bit in [1, 2, 4, 8]:
-            if posicion + 2 > len(datos_registro):
+        position = io_data_start + 4
+        for bit_size in [1, 2, 4, 8]:
+            if position + 2 > len(record_data):
                 return None
-            num_elementos = int(datos_registro[posicion:posicion+2], 16)
-            posicion += 2
-            longitud_datos_io += 2 + num_elementos * (1 + tamano_bit)
-            if posicion + num_elementos * (1 + tamano_bit) > len(datos_registro):
+            num_elements = int(record_data[position:position+2], 16)
+            position += 2
+            io_data_length += 2 + num_elements * (1 + bit_size)
+            if position + num_elements * (1 + bit_size) > len(record_data):
                 return None
 
-        return inicio_datos_io + longitud_datos_io
+        return io_data_start + io_data_length
