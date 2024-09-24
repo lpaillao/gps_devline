@@ -131,20 +131,19 @@ class Decoder:
         return io_records
 
     def decode_imei(self, imei_hex):
-            # Eliminar el prefijo '000f'
-            imei_hex = imei_hex[4:]
-            
-            # Convertir de hexadecimal a decimal
-            imei_dec = str(int(imei_hex, 16))
-            
-            # Asegurar que tengamos 15 dígitos
-            imei_dec = imei_dec.zfill(15)
-            
-            # Tomar solo los primeros 15 dígitos si es más largo
-            imei_dec = imei_dec[:15]
-            
-            # Formatear como IMEI estándar
-            return f"{imei_dec[:3]}-{imei_dec[3:5]}-{imei_dec[5:9]}-{imei_dec[9:12]}-{imei_dec[12:]}"
+        # Los primeros 2 bytes (4 caracteres hex) indican la longitud del IMEI
+        imei_length = int(imei_hex[:4], 16)
+        
+        # El resto es el IMEI en formato texto (bytes)
+        imei_text = bytes.fromhex(imei_hex[4:]).decode('ascii')
+        
+        # Verificar que la longitud coincida
+        if len(imei_text) != imei_length:
+            raise ValueError(f"IMEI length mismatch: expected {imei_length}, got {len(imei_text)}")
+        
+        # Formatear como IMEI estándar
+        return f"{imei_text[:3]}-{imei_text[3:5]}-{imei_text[5:9]}-{imei_text[9:12]}-{imei_text[12:]}"
+
 
 
     def process_fleet_data(self, records):
@@ -268,8 +267,8 @@ class ClientThread(Thread):
     def run(self):
         logging.info(f"New connection from {self.addr}")
         try:
-            self.handle_authentication()
-            self.handle_data()
+            if self.handle_authentication():
+                self.handle_data()
         except Exception as e:
             logging.error(f"Error handling client {self.addr}: {e}")
         finally:
@@ -278,44 +277,61 @@ class ClientThread(Thread):
 
     def handle_authentication(self):
         logging.info("Waiting for device authentication...")
-        buff = self.conn.recv(8192)
-        received = binascii.hexlify(buff).decode()
-        logging.debug(f"Received authentication data: {received}")
-        if len(received) > 2:
-            self.imei = received
+        try:
+            # Primero, recibimos los 2 bytes que indican la longitud del IMEI
+            length_bytes = self.conn.recv(2)
+            if len(length_bytes) != 2:
+                raise ValueError("Insufficient data for IMEI length")
+            
+            imei_length = struct.unpack('>H', length_bytes)[0]
+            
+            # Ahora, recibimos el IMEI
+            imei_bytes = self.conn.recv(imei_length)
+            if len(imei_bytes) != imei_length:
+                raise ValueError(f"IMEI data length mismatch: expected {imei_length}, got {len(imei_bytes)}")
+            
+            self.imei = imei_bytes.decode('ascii')
             logging.info(f"Device authenticated | IMEI: {self.imei}")
             self.conn.send(b'\x01')
-        else:
-            logging.warning("Authentication failed: insufficient data received")
+            return True
+        except Exception as e:
+            logging.error(f"Authentication failed: {e}")
             self.conn.send(b'\x00')
-            raise Exception("Authentication failed")
+            return False
 
     def handle_data(self):
         logging.info("Waiting for GPS data...")
 
         try:
-            buff = self.conn.recv(8192)
-            received = binascii.hexlify(buff).decode()
+            # Recibir los 4 bytes de longitud del paquete
+            length_bytes = self.conn.recv(4)
+            if len(length_bytes) != 4:
+                raise ValueError("Insufficient data for packet length")
+            
+            packet_length = struct.unpack('>I', length_bytes)[0]
+            
+            # Recibir el resto del paquete
+            data = self.conn.recv(packet_length)
+            if len(data) != packet_length:
+                raise ValueError(f"Data length mismatch: expected {packet_length}, got {len(data)}")
+            
+            received = binascii.hexlify(length_bytes + data).decode()
             logging.debug(f"Received GPS data: {received}")
 
-            if len(received) > 2:
-                decoder = Decoder(payload=received, imei=self.imei)
-                records = decoder.decode_data()
+            decoder = Decoder(payload=received, imei=self.imei)
+            records = decoder.decode_data()
 
-                if records:
-                    self.data_manager.save_data(self.imei, records)
-                    self.display_records(records)
-                    self.conn.send(struct.pack("!L", len(records)))
-                    logging.info(f"Processed {len(records)} records from IMEI: {self.imei}")
-                else:
-                    logging.warning("No valid records decoded from the GPS data")
-                    self.conn.send(b'\x00')
+            if records:
+                self.data_manager.save_data(self.imei, records)
+                self.display_records(records)
+                self.conn.send(struct.pack(">I", len(records)))
+                logging.info(f"Processed {len(records)} records from IMEI: {self.imei}")
             else:
-                logging.warning("No valid GPS data received")
-                self.conn.send(b'\x00')
+                logging.warning("No valid records decoded from the GPS data")
+                self.conn.send(struct.pack(">I", 0))
         except Exception as e:
             logging.error(f"Error handling data: {e}")
-            self.conn.send(b'\x00')
+            self.conn.send(struct.pack(">I", 0))
 
     def display_records(self, records):
         for i, record in enumerate(records, 1):
