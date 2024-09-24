@@ -172,41 +172,49 @@ class ClientThread(Thread):
     def handle_data(self):
         logging.info("Waiting for GPS data...")
         
-        # Recibe el tamaño del paquete, que es lo primero que envía el GPS según Teltonika
-        length_header = self.conn.recv(4)
-        if len(length_header) != 4:
-            logging.warning("Failed to receive the full header.")
-            self.conn.send(b'\x00')
-            return
-        
-        length = struct.unpack('!I', length_header)[0]
-        logging.debug(f"Expected length of the data: {length} bytes.")
-        
-        buff = self.conn.recv(length)
-        received = binascii.hexlify(buff)
-        logging.debug(f"Received GPS data: {received}")
-
-        if len(received) > 2:
-            codec_id = received[16:18]
-            if codec_id != b'08':
-                logging.error(f"Unsupported codec ID: {codec_id}. Expected '08'.")
+        # Intenta recibir el tamaño del paquete
+        try:
+            length_header = self.conn.recv(4)
+            if len(length_header) != 4:
+                logging.warning("Failed to receive the full header.")
                 self.conn.send(b'\x00')
                 return
             
-            decoder = Decoder(payload=received, imei=self.imei)
-            records = decoder.decode_data()
-            
-            if records:
-                self.data_manager.save_data(self.imei, records)
-                self.display_records(records)
-                # Envía confirmación del número de registros procesados
-                self.conn.send(struct.pack("!L", len(records)))
-                logging.info(f"Processed {len(records)} records from IMEI: {self.imei}")
-            else:
-                logging.warning("No valid records decoded from the GPS data")
+            length = struct.unpack('!I', length_header)[0]
+            if length == 0:
+                logging.warning("Received length is 0, closing connection.")
                 self.conn.send(b'\x00')
-        else:
-            logging.warning("No valid GPS data received")
+                return
+
+            logging.debug(f"Expected length of the data: {length} bytes.")
+            
+            buff = self.conn.recv(length)
+            received = binascii.hexlify(buff)
+            logging.debug(f"Received GPS data: {received}")
+
+            if len(received) > 2:
+                codec_id = received[16:18]
+                if codec_id != b'08':
+                    logging.error(f"Unsupported codec ID: {codec_id}. Expected '08'.")
+                    self.conn.send(b'\x00')
+                    return
+
+                decoder = Decoder(payload=received, imei=self.imei)
+                records = decoder.decode_data()
+
+                if records:
+                    self.data_manager.save_data(self.imei, records)
+                    self.display_records(records)
+                    self.conn.send(struct.pack("!L", len(records)))
+                    logging.info(f"Processed {len(records)} records from IMEI: {self.imei}")
+                else:
+                    logging.warning("No valid records decoded from the GPS data")
+                    self.conn.send(b'\x00')
+            else:
+                logging.warning("No valid GPS data received")
+                self.conn.send(b'\x00')
+        except Exception as e:
+            logging.error(f"Error handling data: {e}")
             self.conn.send(b'\x00')
 
 
