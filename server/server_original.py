@@ -171,48 +171,30 @@ class ClientThread(Thread):
 
     def handle_data(self):
         logging.info("Waiting for GPS data...")
-        
-        # Intenta recibir el tamaño del paquete
-        try:
-            length_header = self.conn.recv(4)
-            if len(length_header) != 4:
-                logging.warning("Failed to receive the full header.")
-                self.conn.send(b'\x00')
-                return
-            
-            length = struct.unpack('!I', length_header)[0]
-            if length == 0:
-                logging.warning("Received length is 0, closing connection.")
-                self.conn.send(b'\x00')
-                return
 
-            logging.debug(f"Expected length of the data: {length} bytes.")
-            
-            buff = self.conn.recv(length)
+        try:
+            # Recibir datos del GPS
+            buff = self.conn.recv(8192)  # Tamaño de buffer grande
             received = binascii.hexlify(buff)
             logging.debug(f"Received GPS data: {received}")
 
             if len(received) > 2:
-                codec_id = received[16:18]
-                if codec_id != b'08':
-                    logging.error(f"Unsupported codec ID: {codec_id}. Expected '08'.")
-                    self.conn.send(b'\x00')
-                    return
-
+                # Decodificar datos recibidos
                 decoder = Decoder(payload=received, imei=self.imei)
                 records = decoder.decode_data()
 
                 if records:
+                    # Guardar y mostrar los registros si son válidos
                     self.data_manager.save_data(self.imei, records)
                     self.display_records(records)
                     self.conn.send(struct.pack("!L", len(records)))
                     logging.info(f"Processed {len(records)} records from IMEI: {self.imei}")
                 else:
                     logging.warning("No valid records decoded from the GPS data")
-                    self.conn.send(b'\x00')
+                    self.conn.send(b'\x00')  # Responder si no hay registros válidos
             else:
                 logging.warning("No valid GPS data received")
-                self.conn.send(b'\x00')
+                self.conn.send(b'\x00')  # Enviar respuesta en caso de error
         except Exception as e:
             logging.error(f"Error handling data: {e}")
             self.conn.send(b'\x00')
