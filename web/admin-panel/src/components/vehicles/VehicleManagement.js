@@ -196,7 +196,7 @@ const VehicleManagement = () => {
                 className={`px-4 py-2 rounded-md ${liveTracking ? bg.secondary : bg.primary} ${text.primary}`}
               >
                 {liveTracking ? 'Stop Live Tracking' : 'Start Live Tracking'}
-              </button>
+              </button> 
             )}
           </>
         )}
