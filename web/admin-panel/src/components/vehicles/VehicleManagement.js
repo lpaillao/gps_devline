@@ -1,127 +1,187 @@
-import React, { useState } from 'react';
-import { MapContainer, TileLayer, Marker, Popup, Polyline } from 'react-leaflet';
-import 'leaflet/dist/leaflet.css';
-import { Icon } from 'leaflet';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import axios from 'axios';
+import io from 'socket.io-client';
+import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
-import { 
-  TruckIcon, 
-  BoltIcon, 
-  ClockIcon, 
-  MapPinIcon,
-  ArrowTrendingUpIcon,
-  CalendarIcon
-} from '@heroicons/react/24/solid';
-
-let DefaultIcon = new Icon({
-  iconUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon.png',
-  shadowUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-shadow.png',
-  iconSize: [25, 41],
-  iconAnchor: [12, 41]
-});
-
-const vehicles = [
-  { id: 1, name: 'Truck 1', type: 'Heavy Duty', status: 'Moving' },
-  { id: 2, name: 'Van 1', type: 'Delivery', status: 'Idle' },
-  { id: 3, name: 'Car 1', type: 'Passenger', status: 'Moving' },
-];
-
-const fakeRoute = [
-  [51.505, -0.09],
-  [51.51, -0.1],
-  [51.51, -0.12],
-];
+import DeviceList from './DeviceList';
+import DeviceDetails from './DeviceDetails';
+import MapComponent from './MapComponent';
+import { API_BASE_URL, GPS_SERVER_URL } from '../../config';
 
 const VehicleManagement = () => {
-  const [selectedVehicle, setSelectedVehicle] = useState(null);
-  const { text, bg, colors } = useTheme();
+  const [devices, setDevices] = useState([]);
+  const [connectedDevices, setConnectedDevices] = useState([]);
+  const [selectedDevice, setSelectedDevice] = useState(null);
+  const [routePoints, setRoutePoints] = useState([]);
+  const [pointLimit, setPointLimit] = useState(100);
+  const [error, setError] = useState(null);
+  const [liveTracking, setLiveTracking] = useState(false);
+  const socketRef = useRef(null);
+  const { user } = useAuth();
+  const { text, bg } = useTheme();
 
-  const fakeGPSData = {
-    speed: 65,
-    latitude: 51.505,
-    longitude: -0.09,
-    heading: 180,
-    timestamp: new Date().toLocaleString(),
-  };
-
-  const getStatusColor = (status) => {
-    switch (status.toLowerCase()) {
-      case 'moving':
-        return 'bg-green-500';
-      case 'idle':
-        return 'bg-yellow-500';
-      default:
-        return 'bg-blue-500';
+  const handleGPSUpdate = useCallback((data) => {
+    console.log('Received GPS update:', data);
+    if (data.imei === selectedDevice?.imei) {
+      const { Latitude, Longitude } = data.data.Location;
+      setRoutePoints(prevPoints => [...prevPoints, [Latitude, Longitude]]);
     }
-  };
+  }, [selectedDevice]);
 
-  const StatusIndicator = ({ status }) => (
-    <span className={`px-2 py-1 rounded-full text-xs text-white font-medium ${getStatusColor(status)}`}>
-      {status}
-    </span>
-  );
+  const connectSocket = useCallback(() => {
+    console.log('Attempting to connect to socket...');
+    socketRef.current = io(GPS_SERVER_URL, {
+      transports: ['websocket'],
+      upgrade: false
+    });
 
-  const DataWidget = ({ icon: IconComponent, title, value, color }) => (
-    <div className={`${bg.secondary} rounded-xl shadow-md p-4 flex items-center space-x-4`}>
-      <div className={`${color} rounded-full p-3`}>
-        <IconComponent className="w-6 h-6 text-white" />
-      </div>
-      <div>
-        <p className={`${text.secondary} text-sm`}>{title}</p>
-        <p className={`${text.primary} font-semibold text-lg`}>{value}</p>
-      </div>
-    </div>
-  );
+    socketRef.current.on('connect', () => {
+      console.log('Successfully connected to GPS server');
+    });
+
+    socketRef.current.on('disconnect', () => {
+      console.log('Disconnected from GPS server');
+    });
+
+    socketRef.current.on('error', (error) => {
+      console.error('Socket connection error:', error);
+    });
+
+    socketRef.current.on('subscribed', (data) => {
+      console.log(`Successfully subscribed to IMEI: ${data.imei}`);
+    });
+
+    socketRef.current.on('gps_update', handleGPSUpdate);
+  }, [handleGPSUpdate]);
+
+  const disconnectSocket = useCallback(() => {
+    if (socketRef.current) {
+      console.log('Disconnecting socket...');
+      socketRef.current.disconnect();
+      socketRef.current = null;
+    }
+  }, []);
+
+  const subscribeToIMEI = useCallback((imei) => {
+    if (socketRef.current && socketRef.current.connected) {
+      console.log(`Attempting to subscribe to IMEI: ${imei}`);
+      socketRef.current.emit('subscribe', imei, (response) => {
+        if (response && response.success) {
+          console.log(`Successfully subscribed to IMEI: ${imei}`);
+        } else {
+          console.error(`Failed to subscribe to IMEI: ${imei}`, response ? response.error : 'Unknown error');
+        }
+      });
+    } else {
+      console.error('Socket is not connected. Cannot subscribe.');
+    }
+  }, []);
+
+  const fetchDeviceRoute = useCallback(async (imei) => {
+    try {
+      setError(null);
+      const endDate = new Date().toISOString().split('T')[0];
+      const startDate = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+      const response = await axios.get(`${GPS_SERVER_URL}/gps/${imei}/history?start_date=${startDate}&end_date=${endDate}&limit=${pointLimit}`);
+      if (response.data && response.data.length > 0) {
+        setRoutePoints(response.data.map(point => [point.latitude, point.longitude]));
+      } else {
+        setRoutePoints([]);
+        setError('No route data available for this device.');
+      }
+    } catch (error) {
+      console.error('Error fetching device route:', error);
+      setRoutePoints([]);
+      setError('Error fetching device route. The device might be offline or not sending data.');
+    }
+  }, [pointLimit]);
+
+  const handleDeviceSelect = useCallback((device) => {
+    setSelectedDevice(device);
+    setLiveTracking(false);
+    fetchDeviceRoute(device.imei);
+  }, [fetchDeviceRoute]);
+
+  const handlePointLimitChange = useCallback((newLimit) => {
+    setPointLimit(newLimit);
+    if (selectedDevice && !liveTracking) {
+      fetchDeviceRoute(selectedDevice.imei);
+    }
+  }, [selectedDevice, liveTracking, fetchDeviceRoute]);
+
+  const toggleLiveTracking = useCallback(() => {
+    if (liveTracking) {
+      setLiveTracking(false);
+      if (selectedDevice) {
+        fetchDeviceRoute(selectedDevice.imei);
+      }
+    } else {
+      setLiveTracking(true);
+      if (selectedDevice) {
+        subscribeToIMEI(selectedDevice.imei);
+      }
+    }
+  }, [liveTracking, selectedDevice, fetchDeviceRoute, subscribeToIMEI]);
+
+  const fetchDevices = useCallback(async () => {
+    try {
+      const response = await axios.get(`${API_BASE_URL}?action=getAllDispositivosGPS`, { withCredentials: true });
+      if (response.data.success) {
+        setDevices(response.data.dispositivos);
+      }
+    } catch (error) {
+      console.error('Error fetching devices:', error);
+      setError('Error fetching devices. Please try again later.');
+    }
+  }, []);
+
+  const fetchConnectedDevices = useCallback(async () => {
+    try {
+      const response = await axios.get(`${GPS_SERVER_URL}/connected_devices`);
+      setConnectedDevices(response.data);
+    } catch (error) {
+      console.error('Error fetching connected devices:', error);
+    }
+  }, []);
+
+  useEffect(() => {
+    connectSocket();
+    fetchDevices();
+    fetchConnectedDevices();
+
+    return () => {
+      disconnectSocket();
+    };
+  }, [connectSocket, disconnectSocket, fetchDevices, fetchConnectedDevices]);
 
   return (
     <div className="flex flex-col lg:flex-row h-full gap-6">
-      <div className={`w-full lg:w-1/4 ${bg.secondary} rounded-xl shadow-lg p-6 overflow-y-auto`}>
-        <h2 className={`text-2xl font-bold mb-6 ${text.primary} flex items-center`}>
-          <TruckIcon className="w-8 h-8 mr-2 text-primary-500" />
-          Vehicles
-        </h2>
-        <ul className="space-y-4">
-          {vehicles.map((vehicle) => (
-            <li
-              key={vehicle.id}
-              className={`p-4 ${bg.primary} rounded-xl cursor-pointer transition-all duration-200 hover:shadow-md ${
-                selectedVehicle?.id === vehicle.id ? 'ring-2 ring-primary-500' : ''
-              }`}
-              onClick={() => setSelectedVehicle(vehicle)}
-            >
-              <h3 className={`font-semibold ${text.primary} text-lg`}>{vehicle.name}</h3>
-              <p className={`text-sm ${text.secondary} mt-1`}>{vehicle.type}</p>
-              <div className="mt-2 flex justify-between items-center">
-                <StatusIndicator status={vehicle.status} />
-                <TruckIcon className="w-6 h-6 text-primary-500" />
-              </div>
-            </li>
-          ))}
-        </ul>
-      </div>
+      <DeviceList 
+        devices={devices} 
+        connectedDevices={connectedDevices}
+        onSelectDevice={handleDeviceSelect} 
+        selectedDevice={selectedDevice}
+      />
       <div className="w-full lg:w-3/4 space-y-6">
-        <div className={`${bg.secondary} rounded-xl shadow-lg p-4`}>
-          <MapContainer center={[51.505, -0.09]} zoom={13} style={{ height: '400px', width: '100%', borderRadius: '0.75rem' }}>
-            <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-            <Marker position={[51.505, -0.09]} icon={DefaultIcon}>
-              <Popup>Vehicle Location</Popup>
-            </Marker>
-            <Polyline positions={fakeRoute} color="blue" />
-          </MapContainer>
-        </div>
-        {selectedVehicle && (
-          <div className={`${bg.secondary} rounded-xl shadow-lg p-6`}>
-            <h2 className={`text-2xl font-bold mb-6 ${text.primary} flex items-center`}>
-              <TruckIcon className="w-8 h-8 mr-2 text-primary-500" />
-              {selectedVehicle.name} Details
-            </h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              <DataWidget icon={BoltIcon} title="Speed" value={`${fakeGPSData.speed} km/h`} color="bg-blue-500" />
-              <DataWidget icon={MapPinIcon} title="Location" value={`${fakeGPSData.latitude}, ${fakeGPSData.longitude}`} color="bg-green-500" />
-              <DataWidget icon={ArrowTrendingUpIcon} title="Heading" value={`${fakeGPSData.heading}°`} color="bg-yellow-500" />
-              <DataWidget icon={ClockIcon} title="Last Updated" value={fakeGPSData.timestamp} color="bg-purple-500" />
-              <DataWidget icon={CalendarIcon} title="Status" value={<StatusIndicator status={selectedVehicle.status} />} color="bg-red-500" />
-            </div>
-          </div>
+        {error && <div className={`${text.error} mb-4`}>{error}</div>}
+        <MapComponent routePoints={routePoints} liveTracking={liveTracking} />
+        {selectedDevice && (
+          <>
+            <DeviceDetails 
+              device={selectedDevice} 
+              pointLimit={pointLimit} 
+              onPointLimitChange={handlePointLimitChange}
+              liveTracking={liveTracking}
+            />
+            {connectedDevices.includes(selectedDevice.imei) && (
+              <button
+                onClick={toggleLiveTracking}
+                className={`px-4 py-2 rounded-md ${liveTracking ? bg.secondary : bg.primary} ${text.primary}`}
+              >
+                {liveTracking ? 'Stop Live Tracking' : 'Start Live Tracking'}
+              </button>
+            )}
+          </>
         )}
       </div>
     </div>
