@@ -7,7 +7,7 @@ error_reporting(E_ALL);
 mb_internal_encoding('UTF-8');
 mb_http_output('UTF-8');
 
-header("Access-Control-Allow-Origin: http://localhost:3000");
+header("Access-Control-Allow-Origin: http://127.0.0.1:3000");
 header("Access-Control-Allow-Credentials: true");
 header("Access-Control-Allow-Methods: POST, GET, OPTIONS");
 header("Access-Control-Allow-Headers: Content-Type");
