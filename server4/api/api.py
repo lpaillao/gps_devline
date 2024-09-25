@@ -1,20 +1,13 @@
-import eventlet
-eventlet.monkey_patch()
-
 from flask import Flask, jsonify, request
 from flask_socketio import SocketIO, emit
 from data.data_manager import DataManager
 from config import API_HOST, API_PORT
 from datetime import datetime, timedelta
 from flask_cors import CORS
-import logging
 
 app = Flask(__name__)
-CORS(app, resources={r"/*": {"origins": "*"}})
+CORS(app)  # Esto habilita CORS para todas las rutas
 socketio = SocketIO(app, cors_allowed_origins="*", async_mode='eventlet')
-
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
 
 @app.route('/api/gps/<imei>')
 def get_gps_data(imei):
@@ -56,27 +49,24 @@ def get_device_count():
     devices = DataManager.get_connected_devices()
     return jsonify({'count': len(devices)})
 
+def start_api():
+    app.run(host=API_HOST, port=API_PORT)
+
 @socketio.on('connect')
 def handle_connect():
-    logger.info(f'Cliente conectado. SID: {request.sid}')
+    print('Cliente conectado')
 
 @socketio.on('disconnect')
 def handle_disconnect():
-    logger.info(f'Cliente desconectado. SID: {request.sid}')
+    print('Cliente desconectado')
 
 @socketio.on('subscribe')
 def handle_subscribe(imei):
-    logger.info(f'Cliente {request.sid} suscrito al IMEI: {imei}')
-    emit('subscribed', {'imei': imei})
-    return {'success': True}
+    print(f'Cliente suscrito al IMEI: {imei}')
+    socketio.emit('subscribed', {'imei': imei}, room=request.sid)
 
 def emit_gps_update(imei, data):
-    logger.info(f'Emitiendo actualización GPS para IMEI: {imei}')
     socketio.emit('gps_update', {'imei': imei, 'data': data})
 
 def start_api():
-    logger.info(f'Iniciando servidor en {API_HOST}:{API_PORT}')
-    socketio.run(app, host=API_HOST, port=API_PORT, debug=True)
-
-if __name__ == '__main__':
-    start_api()
+    socketio.run(app, host=API_HOST, port=API_PORT)

@@ -1,10 +1,6 @@
-import eventlet
-eventlet.monkey_patch()
-
 import logging
 from server.gps_server import start_server
 from api.api import start_api
-from threading import Thread
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO,
@@ -18,6 +14,7 @@ if __name__ == "__main__":
     print("Press Ctrl+C to stop the server")
     
     # Start the GPS server in a separate thread
+    from threading import Thread
     server_thread = Thread(target=start_server)
     server_thread.start()
     
