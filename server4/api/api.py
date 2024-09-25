@@ -1,13 +1,13 @@
+import eventlet
+eventlet.monkey_patch()
+
 from flask import Flask, jsonify, request
 from flask_socketio import SocketIO, emit
 from data.data_manager import DataManager
 from config import API_HOST, API_PORT
 from datetime import datetime, timedelta
 from flask_cors import CORS
-import eventlet
 import logging
-
-eventlet.monkey_patch()
 
 app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": "*"}})
@@ -67,12 +67,8 @@ def handle_disconnect():
 @socketio.on('subscribe')
 def handle_subscribe(imei):
     logger.info(f'Cliente {request.sid} suscrito al IMEI: {imei}')
-    emit('subscribed', {'imei': imei}, room=request.sid)
+    emit('subscribed', {'imei': imei})
     return {'success': True}
-
-@socketio.on_error()
-def error_handler(e):
-    logger.error(f'Error en SocketIO: {str(e)}')
 
 def emit_gps_update(imei, data):
     logger.info(f'Emitiendo actualización GPS para IMEI: {imei}')
