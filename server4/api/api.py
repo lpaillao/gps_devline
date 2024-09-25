@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 from flask_cors import CORS
 
 app = Flask(__name__)
-CORS(app)  # Esto habilita CORS para todas las rutas
+CORS(app)  # Habilita CORS para todas las rutas
 socketio = SocketIO(app, cors_allowed_origins="*", async_mode='eventlet')
 
 @app.route('/api/gps/<imei>')
@@ -25,12 +25,12 @@ def get_gps_history(imei):
     start_date = request.args.get('start_date', default=None, type=str)
     end_date = request.args.get('end_date', default=None, type=str)
     limit = request.args.get('limit', default=1000, type=int)
-    
+
     if not start_date:
         start_date = (datetime.now() - timedelta(days=7)).strftime('%Y-%m-%d')
     if not end_date:
         end_date = datetime.now().strftime('%Y-%m-%d')
-    
+
     data = DataManager.get_gps_history(imei, start_date, end_date, limit)
     return jsonify(data)
 
@@ -49,24 +49,30 @@ def get_device_count():
     devices = DataManager.get_connected_devices()
     return jsonify({'count': len(devices)})
 
-def start_api():
-    app.run(host=API_HOST, port=API_PORT)
-
+# Manejo de conexión con WebSocket
 @socketio.on('connect')
 def handle_connect():
     print('Cliente conectado')
+    emit('connection_response', {'message': 'Conexión exitosa con el servidor WebSocket'})
 
 @socketio.on('disconnect')
 def handle_disconnect():
     print('Cliente desconectado')
 
 @socketio.on('subscribe')
-def handle_subscribe(imei):
-    print(f'Cliente suscrito al IMEI: {imei}')
-    socketio.emit('subscribed', {'imei': imei}, room=request.sid)
+def handle_subscribe(data):
+    imei = data.get('imei', None)
+    if imei:
+        print(f'Cliente suscrito al IMEI: {imei}')
+        socketio.emit('subscribed', {'imei': imei}, room=request.sid)
+    else:
+        print('IMEI no proporcionado')
+        emit('subscription_error', {'error': 'IMEI no proporcionado'})
 
+# Emisión de actualización de datos GPS
 def emit_gps_update(imei, data):
     socketio.emit('gps_update', {'imei': imei, 'data': data})
 
+# Inicialización de la API
 def start_api():
     socketio.run(app, host=API_HOST, port=API_PORT)

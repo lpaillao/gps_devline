@@ -16,10 +16,12 @@ const VehicleManagement = () => {
   const [pointLimit, setPointLimit] = useState(100);
   const [error, setError] = useState(null);
   const [liveTracking, setLiveTracking] = useState(false);
+  const [socketConnected, setSocketConnected] = useState(false);  // Estado para el socket
   const socketRef = useRef(null);
   const { user } = useAuth();
   const { text, bg } = useTheme();
 
+  // Maneja las actualizaciones del GPS cuando se recibe un evento 'gps_update'
   const handleGPSUpdate = useCallback((data) => {
     console.log('Received GPS update:', data);
     if (data.imei === selectedDevice?.imei) {
@@ -28,25 +30,30 @@ const VehicleManagement = () => {
     }
   }, [selectedDevice]);
 
+  // Conectar al servidor de GPS usando Socket.IO
   const connectSocket = useCallback(() => {
     console.log('Attempting to connect to socket...');
     socketRef.current = io(GPS_SERVER_URL, {
       transports: ['websocket'],
-      upgrade: false
+      upgrade: false,
     });
 
     socketRef.current.on('connect', () => {
       console.log('Successfully connected to GPS server');
+      setSocketConnected(true);
     });
 
     socketRef.current.on('disconnect', () => {
       console.log('Disconnected from GPS server');
+      setSocketConnected(false);
     });
 
     socketRef.current.on('error', (error) => {
       console.error('Socket connection error:', error);
+      setError('Failed to connect to GPS server. Please try again later.');
     });
 
+    // Maneja la respuesta de suscripción y las actualizaciones de GPS
     socketRef.current.on('subscribed', (data) => {
       console.log(`Successfully subscribed to IMEI: ${data.imei}`);
     });
@@ -54,16 +61,19 @@ const VehicleManagement = () => {
     socketRef.current.on('gps_update', handleGPSUpdate);
   }, [handleGPSUpdate]);
 
+  // Desconectar el socket
   const disconnectSocket = useCallback(() => {
     if (socketRef.current) {
       console.log('Disconnecting socket...');
       socketRef.current.disconnect();
       socketRef.current = null;
+      setSocketConnected(false);
     }
   }, []);
 
+  // Suscribirse al IMEI seleccionado
   const subscribeToIMEI = useCallback((imei) => {
-    if (socketRef.current && socketRef.current.connected) {
+    if (socketRef.current && socketConnected) {
       console.log(`Attempting to subscribe to IMEI: ${imei}`);
       socketRef.current.emit('subscribe', imei, (response) => {
         if (response && response.success) {
@@ -75,8 +85,9 @@ const VehicleManagement = () => {
     } else {
       console.error('Socket is not connected. Cannot subscribe.');
     }
-  }, []);
+  }, [socketConnected]);
 
+  // Obtener el historial de rutas de un dispositivo
   const fetchDeviceRoute = useCallback(async (imei) => {
     try {
       setError(null);
@@ -96,12 +107,14 @@ const VehicleManagement = () => {
     }
   }, [pointLimit]);
 
+  // Manejar la selección de un dispositivo
   const handleDeviceSelect = useCallback((device) => {
     setSelectedDevice(device);
     setLiveTracking(false);
     fetchDeviceRoute(device.imei);
   }, [fetchDeviceRoute]);
 
+  // Cambiar el límite de puntos mostrados en el mapa
   const handlePointLimitChange = useCallback((newLimit) => {
     setPointLimit(newLimit);
     if (selectedDevice && !liveTracking) {
@@ -109,6 +122,7 @@ const VehicleManagement = () => {
     }
   }, [selectedDevice, liveTracking, fetchDeviceRoute]);
 
+  // Habilitar o deshabilitar el seguimiento en vivo
   const toggleLiveTracking = useCallback(() => {
     if (liveTracking) {
       setLiveTracking(false);
@@ -123,6 +137,7 @@ const VehicleManagement = () => {
     }
   }, [liveTracking, selectedDevice, fetchDeviceRoute, subscribeToIMEI]);
 
+  // Obtener la lista de dispositivos disponibles
   const fetchDevices = useCallback(async () => {
     try {
       const response = await axios.get(`${API_BASE_URL}?action=getAllDispositivosGPS`, { withCredentials: true });
@@ -135,6 +150,7 @@ const VehicleManagement = () => {
     }
   }, []);
 
+  // Obtener los dispositivos conectados al servidor
   const fetchConnectedDevices = useCallback(async () => {
     try {
       const response = await axios.get(`${GPS_SERVER_URL}/connected_devices`);
@@ -144,6 +160,7 @@ const VehicleManagement = () => {
     }
   }, []);
 
+  // Efecto para conectar el socket y obtener dispositivos al cargar el componente
   useEffect(() => {
     connectSocket();
     fetchDevices();
