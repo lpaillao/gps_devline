@@ -14,13 +14,12 @@ const ControlZonesManagement = () => {
   const [zones, setZones] = useState([]);
   const [selectedZone, setSelectedZone] = useState(null);
   const [isFormVisible, setIsFormVisible] = useState(false);
-  const [coordinates, setCoordinates] = useState([]); // Almacena las coordenadas dibujadas
+  const [coordinates, setCoordinates] = useState([]);
   const { text, bg } = useTheme();
 
   useEffect(() => {
     fetchZones();
   }, []);
-
 
   const fetchZones = async () => {
     try {
@@ -30,8 +29,8 @@ const ControlZonesManagement = () => {
       console.error('Error fetching control zones:', error);
     }
   };
+
   const handleAddZone = async (newZone) => {
-    console.log('Datos enviados para agregar zona:', newZone);
     try {
       const response = await axios.post(`${GPS_SERVER_URL}/zones`, newZone);
       if (response.status === 201) {
@@ -44,7 +43,6 @@ const ControlZonesManagement = () => {
   };
 
   const handleUpdateZone = async (updatedZone) => {
-    console.log('Datos enviados para actualizar zona:', updatedZone); // Log para visualizar los datos enviados
     try {
       const response = await axios.put(`${GPS_SERVER_URL}/zones/${updatedZone.id}`, updatedZone);
       if (response.status === 200) {
@@ -57,12 +55,10 @@ const ControlZonesManagement = () => {
     }
   };
 
-
-
   const handleCreated = (e) => {
     const { layer } = e;
     const newCoordinates = layer.getLatLngs()[0].map(latlng => [latlng.lat, latlng.lng]);
-    setCoordinates(newCoordinates); // Almacena las coordenadas dibujadas
+    setCoordinates(newCoordinates);
   };
 
   const handleEdited = (e) => {
@@ -76,6 +72,7 @@ const ControlZonesManagement = () => {
       handleUpdateZone(editedZone);
     });
   };
+
   const handleDeleteZone = async (zoneId) => {
     try {
       const response = await axios.delete(`${GPS_SERVER_URL}/zones/${zoneId}`);
@@ -86,6 +83,7 @@ const ControlZonesManagement = () => {
       console.error('Error deleting control zone:', error);
     }
   };
+
   const handleDeleted = (e) => {
     const { layers } = e;
     layers.eachLayer((layer) => {
@@ -115,17 +113,17 @@ const ControlZonesManagement = () => {
           onDeleteZone={handleDeleteZone}
         />
         {(isFormVisible || selectedZone) && (
-        <ZoneForm
-          zone={selectedZone}
-          coordinates={coordinates} // Pasamos las coordenadas al formulario
-          onSubmit={handleAddZone}
-          onCancel={() => {
-            setSelectedZone(null);
-            setIsFormVisible(false);
-            setCoordinates([]); // Reinicia las coordenadas cuando se cancela el formulario
-          }}
-        />
-      )}
+          <ZoneForm
+            zone={selectedZone}
+            coordinates={coordinates}
+            onSubmit={handleAddZone}
+            onCancel={() => {
+              setSelectedZone(null);
+              setIsFormVisible(false);
+              setCoordinates([]);
+            }}
+          />
+        )}
       </div>
       <div className="w-full h-[500px]">
         <MapContainer center={[-33.4569, -70.6483]} zoom={13} style={{ height: '100%', width: '100%' }}>
