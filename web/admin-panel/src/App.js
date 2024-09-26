@@ -21,6 +21,8 @@ import DispositivoGPSManagement from './components/dispositivos/DispositivoGPSMa
 import TipoGPSManagement from './components/tiposgps/TipoGPSManagement';
 import UbicacionManagement from './components/ubicaciones/UbicacionManagement';
 import AsignacionDispositivoManagement from './components/asignaciones/AsignacionDispositivoManagement';
+import ControlZonesManagement from './components/zona/ControlZonesManagement';
+
 
 
 const ProtectedRoute = ({ children }) => {
@@ -75,6 +77,7 @@ const DynamicRoutes = () => {
       case '/tipos-gps': return TipoGPSManagement;
       case '/ubicaciones': return UbicacionManagement;
       case '/asignaciones': return AsignacionDispositivoManagement;
+      case '/control-zones': return ControlZonesManagement;
       default: return () => <div>Page not found</div>;
     }
   };

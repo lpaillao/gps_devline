@@ -2,7 +2,7 @@ import sqlite3
 import logging
 from config import DATABASE_NAME
 import threading
-
+import json
 class Database:
     _local = threading.local()
 
@@ -28,6 +28,21 @@ class Database:
                 angle INTEGER,
                 satellites INTEGER,
                 speed INTEGER
+            )
+        ''')
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS control_zones (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT,
+                coordinates TEXT
+            )
+        ''')
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS zone_imei_association (
+                zone_id INTEGER,
+                imei TEXT,
+                FOREIGN KEY (zone_id) REFERENCES control_zones (id) ON DELETE CASCADE,
+                PRIMARY KEY (zone_id, imei)
             )
         ''')
         conn.commit()
@@ -142,3 +157,106 @@ class Database:
         if hasattr(cls._local, "connection"):
             cls._local.connection.close()
             del cls._local.connection
+    
+    @classmethod
+    def insert_control_zone(cls, name, coordinates, imeis=[]):
+        try:
+            conn = cls.get_connection()
+            cursor = conn.cursor()
+            cursor.execute('''
+                INSERT INTO control_zones (name, coordinates)
+                VALUES (?, ?)
+            ''', (name, json.dumps(coordinates)))
+            zone_id = cursor.lastrowid
+            
+            for imei in imeis:
+                cursor.execute('''
+                    INSERT INTO zone_imei_association (zone_id, imei)
+                    VALUES (?, ?)
+                ''', (zone_id, imei))
+            
+            conn.commit()
+            return zone_id
+        except sqlite3.Error as e:
+            logging.error(f"Error al insertar zona de control: {e}")
+            return None
+
+    @classmethod
+    def get_all_control_zones(cls):
+        try:
+            conn = cls.get_connection()
+            cursor = conn.cursor()
+            cursor.execute('''
+                SELECT cz.id, cz.name, cz.coordinates, GROUP_CONCAT(zia.imei) as imeis
+                FROM control_zones cz
+                LEFT JOIN zone_imei_association zia ON cz.id = zia.zone_id
+                GROUP BY cz.id
+            ''')
+            zones = cursor.fetchall()
+            return [{
+                'id': zone['id'],
+                'name': zone['name'],
+                'coordinates': json.loads(zone['coordinates']),
+                'imeis': zone['imeis'].split(',') if zone['imeis'] else []
+            } for zone in zones]
+        except sqlite3.Error as e:
+            logging.error(f"Error al obtener zonas de control: {e}")
+            return []
+
+    @classmethod
+    def update_control_zone(cls, zone_id, name, coordinates, imeis=[]):
+        try:
+            conn = cls.get_connection()
+            cursor = conn.cursor()
+            cursor.execute('''
+                UPDATE control_zones
+                SET name = ?, coordinates = ?
+                WHERE id = ?
+            ''', (name, json.dumps(coordinates), zone_id))
+            
+            cursor.execute('DELETE FROM zone_imei_association WHERE zone_id = ?', (zone_id,))
+            
+            for imei in imeis:
+                cursor.execute('''
+                    INSERT INTO zone_imei_association (zone_id, imei)
+                    VALUES (?, ?)
+                ''', (zone_id, imei))
+            
+            conn.commit()
+            return True
+        except sqlite3.Error as e:
+            logging.error(f"Error al actualizar zona de control: {e}")
+            return False
+
+    @classmethod
+    def delete_control_zone(cls, zone_id):
+        try:
+            conn = cls.get_connection()
+            cursor = conn.cursor()
+            cursor.execute('DELETE FROM control_zones WHERE id = ?', (zone_id,))
+            conn.commit()
+            return cursor.rowcount > 0
+        except sqlite3.Error as e:
+            logging.error(f"Error al eliminar zona de control: {e}")
+            return False
+
+    @classmethod
+    def get_zones_for_imei(cls, imei):
+        try:
+            conn = cls.get_connection()
+            cursor = conn.cursor()
+            cursor.execute('''
+                SELECT cz.id, cz.name, cz.coordinates
+                FROM control_zones cz
+                LEFT JOIN zone_imei_association zia ON cz.id = zia.zone_id
+                WHERE zia.imei = ? OR zia.imei IS NULL
+            ''', (imei,))
+            zones = cursor.fetchall()
+            return [{
+                'id': zone['id'],
+                'name': zone['name'],
+                'coordinates': json.loads(zone['coordinates'])
+            } for zone in zones]
+        except sqlite3.Error as e:
+            logging.error(f"Error al obtener zonas para IMEI: {e}")
+            return []
