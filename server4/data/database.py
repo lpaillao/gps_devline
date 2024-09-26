@@ -281,11 +281,13 @@ class Database:
         try:
             connection = Database.get_connection()
             cursor = connection.cursor()
-            
+             # Convertir las coordenadas a JSON
+            coordinates_json = json.dumps(coordinates)  # Convertir a JSON
+
             # Inserción de la zona en la tabla de zonas (modifica según tu esquema)
             cursor.execute(
-                "INSERT INTO zones (name, coordinates) VALUES (?, ?)",
-                (name, coordinates)
+            "INSERT INTO control_zones (name, coordinates) VALUES (?, ?)",  
+            (name, coordinates_json)  # Usar la cadena JSON en lugar de la lista
             )
             zone_id = cursor.lastrowid
             
