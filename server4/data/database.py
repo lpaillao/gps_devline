@@ -45,6 +45,22 @@ class Database:
                 PRIMARY KEY (zone_id, imei)
             )
         ''')
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS zones (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT,
+                coordinates TEXT
+            )
+        ''')
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS zone_imei (
+                zone_id INTEGER,
+                imei TEXT,
+                FOREIGN KEY (zone_id) REFERENCES zones (id) ON DELETE CASCADE,
+                PRIMARY KEY (zone_id, imei)
+            )
+        ''')
+
         conn.commit()
 
     @classmethod
@@ -260,3 +276,124 @@ class Database:
         except sqlite3.Error as e:
             logging.error(f"Error al obtener zonas para IMEI: {e}")
             return []
+    @staticmethod
+    def insert_zone(name, coordinates, imeis=[]):
+        try:
+            connection = Database.connect()
+            cursor = connection.cursor()
+            
+            # Inserción de la zona en la tabla de zonas (modifica según tu esquema)
+            cursor.execute(
+                "INSERT INTO zones (name, coordinates) VALUES (?, ?)",
+                (name, coordinates)
+            )
+            zone_id = cursor.lastrowid
+            
+            # Relacionar los IMEIs con la zona
+            for imei in imeis:
+                cursor.execute(
+                    "INSERT INTO zone_imei (zone_id, imei) VALUES (?, ?)",
+                    (zone_id, imei)
+                )
+            
+            connection.commit()
+            return zone_id
+        except Exception as e:
+            print(f"Error al insertar zona: {e}")
+            return None
+        finally:
+            connection.close()
+
+    @staticmethod
+    def update_zone(zone_id, name, coordinates, imeis=[]):
+        try:
+            connection = Database.connect()
+            cursor = connection.cursor()
+
+            # Actualizar la zona
+            cursor.execute(
+                "UPDATE zones SET name = ?, coordinates = ? WHERE id = ?",
+                (name, coordinates, zone_id)
+            )
+
+            # Eliminar las relaciones de IMEIs anteriores
+            cursor.execute(
+                "DELETE FROM zone_imei WHERE zone_id = ?",
+                (zone_id,)
+            )
+
+            # Insertar nuevas relaciones de IMEIs
+            for imei in imeis:
+                cursor.execute(
+                    "INSERT INTO zone_imei (zone_id, imei) VALUES (?, ?)",
+                    (zone_id, imei)
+                )
+
+            connection.commit()
+            return True
+        except Exception as e:
+            print(f"Error al actualizar zona: {e}")
+            return False
+        finally:
+            connection.close()
+
+    @staticmethod
+    def delete_zone(zone_id):
+        try:
+            connection = Database.connect()
+            cursor = connection.cursor()
+
+            # Eliminar la zona
+            cursor.execute("DELETE FROM zones WHERE id = ?", (zone_id,))
+            
+            # Eliminar las relaciones de IMEIs
+            cursor.execute("DELETE FROM zone_imei WHERE zone_id = ?", (zone_id,))
+            
+            connection.commit()
+            return True
+        except Exception as e:
+            print(f"Error al eliminar zona: {e}")
+            return False
+        finally:
+            connection.close()
+
+    @staticmethod
+    def get_all_zones():
+        try:
+            connection = Database.connect()
+            cursor = connection.cursor()
+
+            # Obtener todas las zonas
+            cursor.execute("SELECT * FROM zones")
+            zones = cursor.fetchall()
+
+            return zones
+        except Exception as e:
+            print(f"Error al obtener zonas: {e}")
+            return []
+        finally:
+            connection.close()
+
+    @staticmethod
+    def get_zones_by_imei(imei):
+        try:
+            connection = Database.connect()
+            cursor = connection.cursor()
+
+            # Obtener las zonas asociadas a un IMEI
+            cursor.execute(
+                """
+                SELECT zones.* FROM zones
+                JOIN zone_imei ON zones.id = zone_imei.zone_id
+                WHERE zone_imei.imei = ?
+                """,
+                (imei,)
+            )
+            zones = cursor.fetchall()
+
+            return zones
+        except Exception as e:
+            print(f"Error al obtener zonas para el IMEI {imei}: {e}")
+            return []
+        finally:
+            connection.close()
