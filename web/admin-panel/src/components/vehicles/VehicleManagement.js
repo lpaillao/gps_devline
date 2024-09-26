@@ -7,21 +7,25 @@ import DeviceList from './DeviceList';
 import DeviceDetails from './DeviceDetails';
 import MapComponent from './MapComponent';
 import { API_BASE_URL, GPS_SERVER_URL } from '../../config';
+import { TruckIcon, MapIcon, ChartBarIcon } from '@heroicons/react/24/solid';
+import { motion, AnimatePresence } from 'framer-motion';
 
 const VehicleManagement = () => {
   const [devices, setDevices] = useState([]);
   const [connectedDevices, setConnectedDevices] = useState([]);
   const [selectedDevice, setSelectedDevice] = useState(null);
   const [routePoints, setRoutePoints] = useState([]);
-  const [pointLimit, setPointLimit] = useState(100);
   const [error, setError] = useState(null);
   const [liveTracking, setLiveTracking] = useState(false);
-  const [socketConnected, setSocketConnected] = useState(false);  // Estado para el socket
+  const [socketConnected, setSocketConnected] = useState(false);
+  const [activeTab, setActiveTab] = useState('map');
+  const [historyPoint, setHistoryPoint] = useState(null);
+  const [historyData, setHistoryData] = useState([]);
+  const [pointLimit, setPointLimit] = useState(100);
   const socketRef = useRef(null);
   const { user } = useAuth();
   const { text, bg } = useTheme();
 
-  // Maneja las actualizaciones del GPS cuando se recibe un evento 'gps_update'
   const handleGPSUpdate = useCallback((data) => {
     console.log('Received GPS update:', data);
     if (data.imei === selectedDevice?.imei) {
@@ -30,7 +34,6 @@ const VehicleManagement = () => {
     }
   }, [selectedDevice]);
 
-  // Conectar al servidor de GPS usando Socket.IO
   const connectSocket = useCallback(() => {
     console.log('Attempting to connect to socket...');
     socketRef.current = io(GPS_SERVER_URL, {
@@ -53,7 +56,6 @@ const VehicleManagement = () => {
       setError('Failed to connect to GPS server. Please try again later.');
     });
 
-    // Maneja la respuesta de suscripción y las actualizaciones de GPS
     socketRef.current.on('subscribed', (data) => {
       console.log(`Successfully subscribed to IMEI: ${data.imei}`);
     });
@@ -61,7 +63,6 @@ const VehicleManagement = () => {
     socketRef.current.on('gps_update', handleGPSUpdate);
   }, [handleGPSUpdate]);
 
-  // Desconectar el socket
   const disconnectSocket = useCallback(() => {
     if (socketRef.current) {
       console.log('Disconnecting socket...');
@@ -71,7 +72,6 @@ const VehicleManagement = () => {
     }
   }, []);
 
-  // Suscribirse al IMEI seleccionado
   const subscribeToIMEI = useCallback((imei) => {
     if (socketRef.current && socketConnected) {
       console.log(`Attempting to subscribe to IMEI: ${imei}`);
@@ -87,7 +87,6 @@ const VehicleManagement = () => {
     }
   }, [socketConnected]);
 
-  // Obtener el historial de rutas de un dispositivo
   const fetchDeviceRoute = useCallback(async (imei) => {
     try {
       setError(null);
@@ -107,22 +106,29 @@ const VehicleManagement = () => {
     }
   }, [pointLimit]);
 
-  // Manejar la selección de un dispositivo
   const handleDeviceSelect = useCallback((device) => {
     setSelectedDevice(device);
     setLiveTracking(false);
+    setHistoryPoint(null);
     fetchDeviceRoute(device.imei);
+    setActiveTab('map');
   }, [fetchDeviceRoute]);
 
-  // Cambiar el límite de puntos mostrados en el mapa
+
+  const handleHistoryUpdate = useCallback((newHistoryData) => {
+    setHistoryData(newHistoryData);
+    if (Array.isArray(newHistoryData) && newHistoryData.length > 0) {
+      setRoutePoints(newHistoryData.map(point => [point.latitude, point.longitude]));
+      setHistoryPoint(null);
+    } else if (newHistoryData) {
+      setHistoryPoint(newHistoryData);
+    }
+  }, []);
+
   const handlePointLimitChange = useCallback((newLimit) => {
     setPointLimit(newLimit);
-    if (selectedDevice && !liveTracking) {
-      fetchDeviceRoute(selectedDevice.imei);
-    }
-  }, [selectedDevice, liveTracking, fetchDeviceRoute]);
+  }, []);
 
-  // Habilitar o deshabilitar el seguimiento en vivo
   const toggleLiveTracking = useCallback(() => {
     if (liveTracking) {
       setLiveTracking(false);
@@ -137,7 +143,6 @@ const VehicleManagement = () => {
     }
   }, [liveTracking, selectedDevice, fetchDeviceRoute, subscribeToIMEI]);
 
-  // Obtener la lista de dispositivos disponibles
   const fetchDevices = useCallback(async () => {
     try {
       const response = await axios.get(`${API_BASE_URL}?action=getAllDispositivosGPS`, { withCredentials: true });
@@ -150,7 +155,6 @@ const VehicleManagement = () => {
     }
   }, []);
 
-  // Obtener los dispositivos conectados al servidor
   const fetchConnectedDevices = useCallback(async () => {
     try {
       const response = await axios.get(`${GPS_SERVER_URL}/connected_devices`);
@@ -160,7 +164,6 @@ const VehicleManagement = () => {
     }
   }, []);
 
-  // Efecto para conectar el socket y obtener dispositivos al cargar el componente
   useEffect(() => {
     connectSocket();
     fetchDevices();
@@ -172,34 +175,101 @@ const VehicleManagement = () => {
   }, [connectSocket, disconnectSocket, fetchDevices, fetchConnectedDevices]);
 
   return (
-    <div className="flex flex-col lg:flex-row h-full gap-6">
-      <DeviceList 
-        devices={devices} 
-        connectedDevices={connectedDevices}
-        onSelectDevice={handleDeviceSelect} 
-        selectedDevice={selectedDevice}
-      />
-      <div className="w-full lg:w-3/4 space-y-6">
-        {error && <div className={`${text.error} mb-4`}>{error}</div>}
-        <MapComponent routePoints={routePoints} liveTracking={liveTracking} />
-        {selectedDevice && (
-          <>
-            <DeviceDetails 
-              device={selectedDevice} 
-              pointLimit={pointLimit} 
-              onPointLimitChange={handlePointLimitChange}
-              liveTracking={liveTracking}
-            />
-            {connectedDevices.includes(selectedDevice.imei) && (
-              <button
-                onClick={toggleLiveTracking}
-                className={`px-4 py-2 rounded-md ${liveTracking ? bg.secondary : bg.primary} ${text.primary}`}
-              >
-                {liveTracking ? 'Stop Live Tracking' : 'Start Live Tracking'}
-              </button> 
-            )}
-          </>
-        )}
+    <div className={`${bg.primary} min-h-screen p-6`}>
+      <h1 className={`${text.primary} text-3xl font-bold mb-6 flex items-center`}>
+        <TruckIcon className="w-8 h-8 mr-2 text-primary-500" />
+        Gestión de Vehículos
+      </h1>
+      <div className="flex flex-col lg:flex-row gap-6">
+        <DeviceList 
+          devices={devices} 
+          connectedDevices={connectedDevices}
+          onSelectDevice={handleDeviceSelect} 
+          selectedDevice={selectedDevice}
+        />
+        <div className="w-full lg:w-3/4 space-y-6">
+          {error && (
+            <motion.div 
+              initial={{ opacity: 0, y: -20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className={`${bg.error} ${text.error} p-4 rounded-md shadow-md`}
+            >
+              {error}
+            </motion.div>
+          )}
+          {selectedDevice && (
+            <>
+              <div className={`${bg.secondary} rounded-xl shadow-lg p-4 flex justify-between items-center`}>
+                <h2 className={`${text.primary} text-xl font-semibold`}>
+                  {selectedDevice.imei} - {selectedDevice.modelo}
+                </h2>
+                <div className="flex space-x-2">
+                  <button
+                    onClick={() => setActiveTab('map')}
+                    className={`px-4 py-2 rounded-md transition-colors ${activeTab === 'map' ? bg.primary : bg.secondary} ${text.primary}`}
+                  >
+                    <MapIcon className="w-5 h-5" />
+                  </button>
+                  <button
+                    onClick={() => setActiveTab('details')}
+                    className={`px-4 py-2 rounded-md transition-colors ${activeTab === 'details' ? bg.primary : bg.secondary} ${text.primary}`}
+                  >
+                    <TruckIcon className="w-5 h-5" />
+                  </button>
+                  <button
+                    onClick={() => setActiveTab('stats')}
+                    className={`px-4 py-2 rounded-md transition-colors ${activeTab === 'stats' ? bg.primary : bg.secondary} ${text.primary}`}
+                  >
+                    <ChartBarIcon className="w-5 h-5" />
+                  </button>
+                </div>
+              </div>
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={activeTab}
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
+                  transition={{ duration: 0.3 }}
+                >
+                  {activeTab === 'map' && (
+                    <MapComponent 
+                      device={selectedDevice}
+                      routePoints={routePoints} 
+                      liveTracking={liveTracking} 
+                      historyPoint={historyPoint}
+                      historyData={historyData}
+                      onHistoryUpdate={handleHistoryUpdate}
+                      pointLimit={pointLimit}
+                      onPointLimitChange={handlePointLimitChange}
+                    />
+                  )}
+                  {activeTab === 'details' && (
+                    <DeviceDetails 
+                      device={selectedDevice}
+                    />
+                  )}
+                  {activeTab === 'stats' && (
+                    <div className={`${bg.secondary} rounded-xl shadow-lg p-6`}>
+                      <h3 className={`${text.primary} text-xl font-semibold mb-4`}>Estadísticas del Vehículo</h3>
+                      <p className={`${text.secondary}`}>Próximamente: Gráficos y estadísticas detalladas del vehículo.</p>
+                    </div>
+                  )}
+                </motion.div>
+              </AnimatePresence>
+              {connectedDevices.includes(selectedDevice.imei) && (
+                <motion.button
+                  onClick={toggleLiveTracking}
+                  className={`px-4 py-2 rounded-md ${liveTracking ? bg.warning : bg.success} ${text.primary} transition-colors`}
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                >
+                  {liveTracking ? 'Detener Seguimiento en Vivo' : 'Iniciar Seguimiento en Vivo'}
+                </motion.button> 
+              )}
+            </>
+          )}
+        </div>
       </div>
     </div>
   );
