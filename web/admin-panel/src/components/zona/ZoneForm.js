@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useTheme } from '../../contexts/ThemeContext';
 import axios from 'axios';
 
-const ZoneForm = ({ zone, onSubmit, onCancel }) => {
+const ZoneForm = ({ zone, coordinates, onSubmit, onCancel }) => {
   const [name, setName] = useState('');
   const [selectedImeis, setSelectedImeis] = useState([]);
   const [dispositivos, setDispositivos] = useState([]);
@@ -32,10 +32,10 @@ const ZoneForm = ({ zone, onSubmit, onCancel }) => {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    onSubmit({ 
-      id: zone ? zone.id : null, 
-      name, 
-      coordinates: zone ? zone.coordinates : [],
+    onSubmit({
+      id: zone ? zone.id : null,
+      name,
+      coordinates: zone && zone.coordinates.length > 0 ? zone.coordinates : coordinates, // Usamos las coordenadas del mapa si no hay en la zona
       imeis: selectedImeis
     });
   };

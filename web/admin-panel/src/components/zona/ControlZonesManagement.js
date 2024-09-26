@@ -10,69 +10,59 @@ import { EditControl } from "react-leaflet-draw";
 import "leaflet/dist/leaflet.css";
 import "leaflet-draw/dist/leaflet.draw.css";
 
-
 const ControlZonesManagement = () => {
-    const [zones, setZones] = useState([]);
-    const [selectedZone, setSelectedZone] = useState(null);
-    const [isFormVisible, setIsFormVisible] = useState(false);
-    const { text, bg } = useTheme();
-  
-    useEffect(() => {
-      fetchZones();
-    }, []);
-  
-    const fetchZones = async () => {
-      try {
-        const response = await axios.get(`${GPS_SERVER_URL}/zones`);
-        setZones(response.data);
-      } catch (error) {
-        console.error('Error fetching control zones:', error);
+  const [zones, setZones] = useState([]);
+  const [selectedZone, setSelectedZone] = useState(null);
+  const [isFormVisible, setIsFormVisible] = useState(false);
+  const [coordinates, setCoordinates] = useState([]); // Almacena las coordenadas dibujadas
+  const { text, bg } = useTheme();
+
+  useEffect(() => {
+    fetchZones();
+  }, []);
+
+
+  const fetchZones = async () => {
+    try {
+      const response = await axios.get(`${GPS_SERVER_URL}/zones`);
+      setZones(response.data);
+    } catch (error) {
+      console.error('Error fetching control zones:', error);
+    }
+  };
+  const handleAddZone = async (newZone) => {
+    console.log('Datos enviados para agregar zona:', newZone);
+    try {
+      const response = await axios.post(`${GPS_SERVER_URL}/zones`, newZone);
+      if (response.status === 201) {
+        fetchZones();
+        setIsFormVisible(false);
       }
-    };
-  
-    const handleAddZone = async (newZone) => {
-      try {
-        const response = await axios.post(`${GPS_SERVER_URL}/zones`, newZone);
-        if (response.status === 201) {
-          fetchZones();
-          setIsFormVisible(false);
-        }
-      } catch (error) {
-        console.error('Error adding control zone:', error);
+    } catch (error) {
+      console.error('Error adding control zone:', error);
+    }
+  };
+
+  const handleUpdateZone = async (updatedZone) => {
+    console.log('Datos enviados para actualizar zona:', updatedZone); // Log para visualizar los datos enviados
+    try {
+      const response = await axios.put(`${GPS_SERVER_URL}/zones/${updatedZone.id}`, updatedZone);
+      if (response.status === 200) {
+        fetchZones();
+        setSelectedZone(null);
+        setIsFormVisible(false);
       }
-    };
-  
-    const handleUpdateZone = async (updatedZone) => {
-      try {
-        const response = await axios.put(`${GPS_SERVER_URL}/zones/${updatedZone.id}`, updatedZone);
-        if (response.status === 200) {
-          fetchZones();
-          setSelectedZone(null);
-          setIsFormVisible(false);
-        }
-      } catch (error) {
-        console.error('Error updating control zone:', error);
-      }
-    };
-  
-    const handleDeleteZone = async (zoneId) => {
-      try {
-        const response = await axios.delete(`${GPS_SERVER_URL}/zones/${zoneId}`);
-        if (response.status === 200) {
-          fetchZones();
-        }
-      } catch (error) {
-        console.error('Error deleting control zone:', error);
-      }
-    };
+    } catch (error) {
+      console.error('Error updating control zone:', error);
+    }
+  };
+
+
 
   const handleCreated = (e) => {
     const { layer } = e;
-    const newZone = {
-      name: 'New Zone',
-      coordinates: layer.getLatLngs()[0].map(latlng => [latlng.lat, latlng.lng])
-    };
-    handleAddZone(newZone);
+    const newCoordinates = layer.getLatLngs()[0].map(latlng => [latlng.lat, latlng.lng]);
+    setCoordinates(newCoordinates); // Almacena las coordenadas dibujadas
   };
 
   const handleEdited = (e) => {
@@ -86,7 +76,16 @@ const ControlZonesManagement = () => {
       handleUpdateZone(editedZone);
     });
   };
-
+  const handleDeleteZone = async (zoneId) => {
+    try {
+      const response = await axios.delete(`${GPS_SERVER_URL}/zones/${zoneId}`);
+      if (response.status === 200) {
+        fetchZones();
+      }
+    } catch (error) {
+      console.error('Error deleting control zone:', error);
+    }
+  };
   const handleDeleted = (e) => {
     const { layers } = e;
     layers.eachLayer((layer) => {
@@ -116,15 +115,17 @@ const ControlZonesManagement = () => {
           onDeleteZone={handleDeleteZone}
         />
         {(isFormVisible || selectedZone) && (
-          <ZoneForm
-            zone={selectedZone}
-            onSubmit={selectedZone ? handleUpdateZone : handleAddZone}
-            onCancel={() => {
-              setSelectedZone(null);
-              setIsFormVisible(false);
-            }}
-          />
-        )}
+        <ZoneForm
+          zone={selectedZone}
+          coordinates={coordinates} // Pasamos las coordenadas al formulario
+          onSubmit={handleAddZone}
+          onCancel={() => {
+            setSelectedZone(null);
+            setIsFormVisible(false);
+            setCoordinates([]); // Reinicia las coordenadas cuando se cancela el formulario
+          }}
+        />
+      )}
       </div>
       <div className="w-full h-[500px]">
         <MapContainer center={[-33.4569, -70.6483]} zoom={13} style={{ height: '100%', width: '100%' }}>
