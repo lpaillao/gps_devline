@@ -279,7 +279,7 @@ class Database:
     @staticmethod
     def insert_zone(name, coordinates, imeis=[]):
         try:
-            connection = Database.connect()
+            connection = Database.get_connection()
             cursor = connection.cursor()
             
             # Inserción de la zona en la tabla de zonas (modifica según tu esquema)
@@ -307,7 +307,7 @@ class Database:
     @staticmethod
     def update_zone(zone_id, name, coordinates, imeis=[]):
         try:
-            connection = Database.connect()
+            connection = Database.get_connection()
             cursor = connection.cursor()
 
             # Actualizar la zona
@@ -340,7 +340,7 @@ class Database:
     @staticmethod
     def delete_zone(zone_id):
         try:
-            connection = Database.connect()
+            connection = Database.get_connection()
             cursor = connection.cursor()
 
             # Eliminar la zona
@@ -360,7 +360,7 @@ class Database:
     @staticmethod
     def get_all_zones():
         try:
-            connection = Database.connect()
+            connection = Database.get_connection()
             cursor = connection.cursor()
 
             # Obtener todas las zonas
@@ -377,7 +377,7 @@ class Database:
     @staticmethod
     def get_zones_by_imei(imei):
         try:
-            connection = Database.connect()
+            connection = Database.get_connection()
             cursor = connection.cursor()
 
             # Obtener las zonas asociadas a un IMEI
