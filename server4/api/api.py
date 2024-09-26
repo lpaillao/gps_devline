@@ -1,10 +1,9 @@
 from flask import Flask, jsonify, request
 from flask_socketio import SocketIO, emit
 from data.data_manager import DataManager
-from config import API_HOST, API_PORT, GPS_SERVER_URL
+from config import API_HOST, API_PORT
 from datetime import datetime, timedelta
 from flask_cors import CORS
-import requests
 
 app = Flask(__name__)
 CORS(app)  # Habilita CORS para todas las rutas
@@ -79,8 +78,6 @@ def handle_zones():
         data = request.json
         zone_id = DataManager.insert_control_zone(data['name'], data['coordinates'], data.get('imeis', []))
         if zone_id:
-            # Enviar la nueva zona al servidor GPS
-            requests.post(f"{GPS_SERVER_URL}/zones", json=data)
             return jsonify({'id': zone_id, 'message': 'Zona creada exitosamente'}), 201
         else:
             return jsonify({'error': 'Error al crear la zona'}), 500
@@ -91,32 +88,27 @@ def handle_zone(zone_id):
         data = request.json
         success = DataManager.update_control_zone(zone_id, data['name'], data['coordinates'], data.get('imeis', []))
         if success:
-            # Actualizar la zona en el servidor GPS
-            requests.put(f"{GPS_SERVER_URL}/zones/{zone_id}", json=data)
             return jsonify({'message': 'Zona actualizada exitosamente'})
         else:
             return jsonify({'error': 'Error al actualizar la zona'}), 500
     elif request.method == 'DELETE':
         success = DataManager.delete_control_zone(zone_id)
         if success:
-            # Eliminar la zona del servidor GPS
-            requests.delete(f"{GPS_SERVER_URL}/zones/{zone_id}")
             return jsonify({'message': 'Zona eliminada exitosamente'})
         else:
             return jsonify({'error': 'Error al eliminar la zona'}), 500
+
 
 @app.route('/api/zones/imei/<imei>')
 def get_zones_for_imei(imei):
     zones = DataManager.get_zones_for_imei(imei)
     return jsonify(zones)
 
-
 # Emisión de actualización de datos GPS
 #def emit_gps_update(imei, data):
 #    socketio.emit('gps_update', {'imei': imei, 'data': data})
 
 def emit_gps_update(imei, data):
-    # Verificar si el dispositivo está en alguna zona
     latitude = data['Location']['Latitude']
     longitude = data['Location']['Longitude']
     zones = DataManager.get_zones_for_imei(imei)
@@ -128,6 +120,8 @@ def emit_gps_update(imei, data):
     
     data['current_zone'] = current_zone
     socketio.emit('gps_update', {'imei': imei, 'data': data})
+
+
 def point_in_polygon(x, y, poly):
     """
     Determina si un punto (x, y) está dentro de un polígono.

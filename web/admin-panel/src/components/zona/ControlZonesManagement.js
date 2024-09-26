@@ -4,68 +4,67 @@ import { useTheme } from '../../contexts/ThemeContext';
 import ZoneList from './ZoneList';
 import ZoneForm from './ZoneForm';
 import { MapIcon, PlusIcon } from '@heroicons/react/24/solid';
-import { API_BASE_URL } from '../../config';
+import { GPS_SERVER_URL } from '../../config';
 import { MapContainer, TileLayer, FeatureGroup, Polygon } from 'react-leaflet';
 import { EditControl } from "react-leaflet-draw";
 import "leaflet/dist/leaflet.css";
 import "leaflet-draw/dist/leaflet.draw.css";
 
+
 const ControlZonesManagement = () => {
-  const [zones, setZones] = useState([]);
-  const [selectedZone, setSelectedZone] = useState(null);
-  const [isFormVisible, setIsFormVisible] = useState(false);
-  const { text, bg } = useTheme();
-
-  useEffect(() => {
-    fetchZones();
-  }, []);
-
-  const fetchZones = async () => {
-    try {
-      const response = await axios.get(`${API_BASE_URL}?action=getAllControlZones`);
-      if (response.data.success) {
-        setZones(response.data.zones);
+    const [zones, setZones] = useState([]);
+    const [selectedZone, setSelectedZone] = useState(null);
+    const [isFormVisible, setIsFormVisible] = useState(false);
+    const { text, bg } = useTheme();
+  
+    useEffect(() => {
+      fetchZones();
+    }, []);
+  
+    const fetchZones = async () => {
+      try {
+        const response = await axios.get(`${GPS_SERVER_URL}/zones`);
+        setZones(response.data);
+      } catch (error) {
+        console.error('Error fetching control zones:', error);
       }
-    } catch (error) {
-      console.error('Error fetching control zones:', error);
-    }
-  };
-
-  const handleAddZone = async (newZone) => {
-    try {
-      const response = await axios.post(`${API_BASE_URL}?action=createControlZone`, newZone);
-      if (response.data.success) {
-        fetchZones();
-        setIsFormVisible(false);
+    };
+  
+    const handleAddZone = async (newZone) => {
+      try {
+        const response = await axios.post(`${GPS_SERVER_URL}/zones`, newZone);
+        if (response.status === 201) {
+          fetchZones();
+          setIsFormVisible(false);
+        }
+      } catch (error) {
+        console.error('Error adding control zone:', error);
       }
-    } catch (error) {
-      console.error('Error adding control zone:', error);
-    }
-  };
-
-  const handleUpdateZone = async (updatedZone) => {
-    try {
-      const response = await axios.post(`${API_BASE_URL}?action=updateControlZone`, updatedZone);
-      if (response.data.success) {
-        fetchZones();
-        setSelectedZone(null);
-        setIsFormVisible(false);
+    };
+  
+    const handleUpdateZone = async (updatedZone) => {
+      try {
+        const response = await axios.put(`${GPS_SERVER_URL}/zones/${updatedZone.id}`, updatedZone);
+        if (response.status === 200) {
+          fetchZones();
+          setSelectedZone(null);
+          setIsFormVisible(false);
+        }
+      } catch (error) {
+        console.error('Error updating control zone:', error);
       }
-    } catch (error) {
-      console.error('Error updating control zone:', error);
-    }
-  };
-
-  const handleDeleteZone = async (zoneId) => {
-    try {
-      const response = await axios.delete(`${API_BASE_URL}?action=deleteControlZone&id=${zoneId}`);
-      if (response.data.success) {
-        fetchZones();
+    };
+  
+    const handleDeleteZone = async (zoneId) => {
+      try {
+        const response = await axios.delete(`${GPS_SERVER_URL}/zones/${zoneId}`);
+        if (response.status === 200) {
+          fetchZones();
+        }
+      } catch (error) {
+        console.error('Error deleting control zone:', error);
       }
-    } catch (error) {
-      console.error('Error deleting control zone:', error);
-    }
-  };
+    };
 
   const handleCreated = (e) => {
     const { layer } = e;
