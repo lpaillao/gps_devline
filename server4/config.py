@@ -8,3 +8,4 @@ DATABASE_NAME = 'gps_tracking.db'
 # API configuration
 API_HOST = '0.0.0.0'
 API_PORT = 5000
+GPS_SERVER_URL =''
