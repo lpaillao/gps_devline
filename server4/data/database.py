@@ -64,6 +64,7 @@ class Database:
                     PRIMARY KEY (zone_id, imei)
                 )
             ''')
+
             conn.commit()
             logging.info("Tablas creadas exitosamente")
         except sqlite3.Error as e:
@@ -273,6 +274,7 @@ class Database:
         except sqlite3.Error as e:
             logging.error(f"Error fetching zones for IMEI: {e}")
             return []
+    
     @classmethod
     def insert_zone(cls, name, coordinates, imeis=[]):
         conn = cls.get_connection()
@@ -281,7 +283,10 @@ class Database:
             cursor.execute('INSERT INTO zones (name, coordinates) VALUES (?, ?)', (name, json.dumps(coordinates)))
             zone_id = cursor.lastrowid
             for imei in imeis:
-                cursor.execute('INSERT INTO zone_imei (zone_id, imei) VALUES (?, ?)', (zone_id, imei))
+                cursor.execute('''
+                    INSERT OR REPLACE INTO zone_imei (zone_id, imei) 
+                    VALUES (?, ?)
+                ''', (zone_id, imei))
             conn.commit()
             logging.info(f"Zona '{name}' insertada con ID {zone_id}")
             return zone_id
