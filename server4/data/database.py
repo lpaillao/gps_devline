@@ -5,63 +5,70 @@ import threading
 import json
 class Database:
     _local = threading.local()
+    _lock = threading.Lock()
 
     @classmethod
     def get_connection(cls):
         if not hasattr(cls._local, "connection"):
-            cls._local.connection = sqlite3.connect(DATABASE_NAME)
-            cls._local.connection.row_factory = sqlite3.Row
-            cls.create_tables(cls._local.connection)
+            with cls._lock:
+                if not hasattr(cls._local, "connection"):
+                    cls._local.connection = sqlite3.connect(DATABASE_NAME, check_same_thread=False)
+                    cls._local.connection.row_factory = sqlite3.Row
+                    cls.create_tables(cls._local.connection)
         return cls._local.connection
 
     @classmethod
     def create_tables(cls, conn):
         cursor = conn.cursor()
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS gps_data (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                imei TEXT,
-                timestamp TEXT,
-                latitude REAL,
-                longitude REAL,
-                altitude INTEGER,
-                angle INTEGER,
-                satellites INTEGER,
-                speed INTEGER
-            )
-        ''')
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS control_zones (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                name TEXT,
-                coordinates TEXT
-            )
-        ''')
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS zone_imei_association (
-                zone_id INTEGER,
-                imei TEXT,
-                FOREIGN KEY (zone_id) REFERENCES control_zones (id) ON DELETE CASCADE,
-                PRIMARY KEY (zone_id, imei)
-            )
-        ''')
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS zones (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                name TEXT NOT NULL,
-                coordinates TEXT NOT NULL
-            )
-        ''')
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS zone_imei (
-                zone_id INTEGER,
-                imei TEXT,
-                FOREIGN KEY (zone_id) REFERENCES zones (id) ON DELETE CASCADE,
-                PRIMARY KEY (zone_id, imei)
-            )
-        ''')
-
-        conn.commit()
+        try:
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS gps_data (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    imei TEXT,
+                    timestamp TEXT,
+                    latitude REAL,
+                    longitude REAL,
+                    altitude INTEGER,
+                    angle INTEGER,
+                    satellites INTEGER,
+                    speed INTEGER
+                )
+            ''')
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS control_zones (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    name TEXT,
+                    coordinates TEXT
+                )
+            ''')
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS zone_imei_association (
+                    zone_id INTEGER,
+                    imei TEXT,
+                    FOREIGN KEY (zone_id) REFERENCES control_zones (id) ON DELETE CASCADE,
+                    PRIMARY KEY (zone_id, imei)
+                )
+            ''')
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS zones (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    name TEXT NOT NULL,
+                    coordinates TEXT NOT NULL
+                )
+            ''')
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS zone_imei (
+                    zone_id INTEGER,
+                    imei TEXT,
+                    FOREIGN KEY (zone_id) REFERENCES zones (id) ON DELETE CASCADE,
+                    PRIMARY KEY (zone_id, imei)
+                )
+            ''')
+            conn.commit()
+            logging.info("Tablas creadas exitosamente")
+        except sqlite3.Error as e:
+            logging.error(f"Error creando tablas: {e}")
+            conn.rollback()
 
     @classmethod
     def insert_gps_data(cls, imei, data):
@@ -168,11 +175,6 @@ class Database:
             logging.error(f"Error fetching connected devices: {e}")
             return []
 
-    @classmethod
-    def close(cls):
-        if hasattr(cls._local, "connection"):
-            cls._local.connection.close()
-            del cls._local.connection
     
     @classmethod
     def insert_control_zone(cls, name, coordinates, imeis=[]):
@@ -273,18 +275,21 @@ class Database:
             return []
     @staticmethod
     def insert_zone(cls, name, coordinates, imeis=[]):
+        conn = cls.get_connection()
+        cursor = conn.cursor()
         try:
-            conn = cls.get_connection()
-            cursor = conn.cursor()
             cursor.execute('INSERT INTO zones (name, coordinates) VALUES (?, ?)', (name, json.dumps(coordinates)))
             zone_id = cursor.lastrowid
             for imei in imeis:
                 cursor.execute('INSERT INTO zone_imei (zone_id, imei) VALUES (?, ?)', (zone_id, imei))
             conn.commit()
+            logging.info(f"Zona '{name}' insertada con ID {zone_id}")
             return zone_id
         except sqlite3.Error as e:
-            logging.error(f"Error inserting zone: {e}")
+            logging.error(f"Error insertando zona: {e}")
+            conn.rollback()
             return None
+        
     @classmethod
     def is_coordinate_in_zone(cls, lat, lon, zone_id):
         try:
@@ -345,22 +350,26 @@ class Database:
             logging.error(f"Error deleting zone: {e}")
             return False
 
-    @staticmethod
-    def get_all_zones():
+    @classmethod
+    def get_all_zones(cls):
+        conn = cls.get_connection()
+        cursor = conn.cursor()
         try:
-            connection = Database.get_connection()
-            cursor = connection.cursor()
-
-            # Obtener todas las zonas
-            cursor.execute("SELECT * FROM zones")
-            zones = cursor.fetchall()
-
+            cursor.execute('''
+                SELECT z.id, z.name, z.coordinates, GROUP_CONCAT(zi.imei) as imeis
+                FROM zones z
+                LEFT JOIN zone_imei zi ON z.id = zi.zone_id
+                GROUP BY z.id
+            ''')
+            zones = [dict(row) for row in cursor.fetchall()]
+            for zone in zones:
+                zone['coordinates'] = json.loads(zone['coordinates'])
+                zone['imeis'] = zone['imeis'].split(',') if zone['imeis'] else []
+            logging.info(f"Se obtuvieron {len(zones)} zonas")
             return zones
-        except Exception as e:
-            print(f"Error al obtener zonas: {e}")
+        except sqlite3.Error as e:
+            logging.error(f"Error obteniendo zonas: {e}")
             return []
-        finally:
-            connection.close()
 
     @staticmethod
     def get_zones_by_imei(imei):
@@ -385,3 +394,10 @@ class Database:
             return []
         finally:
             connection.close()
+    @classmethod
+    def close(cls):
+        if hasattr(cls._local, "connection"):
+            cls._local.connection.close()
+            del cls._local.connection
+        logging.info("Conexión a la base de datos cerrada")
+

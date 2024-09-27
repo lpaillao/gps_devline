@@ -35,11 +35,16 @@ class DataManager:
     @staticmethod
     def insert_control_zone(name, coordinates, imeis=[]):
         try:
+            logging.info(f"Intentando insertar zona de control: {name}")
             zone_id = Database.insert_zone(name, coordinates, imeis)
-            logging.info(f"Zone '{name}' inserted with ID {zone_id}")
-            return zone_id
+            if zone_id:
+                logging.info(f"Zona de control '{name}' insertada con ID {zone_id}")
+                return zone_id
+            else:
+                logging.error(f"No se pudo insertar la zona de control '{name}'")
+                return None
         except Exception as e:
-            logging.error(f"Failed to insert control zone '{name}': {e}")
+            logging.exception(f"Error al insertar zona de control '{name}': {e}")
             return None
 
     @staticmethod
@@ -71,10 +76,12 @@ class DataManager:
     @staticmethod
     def get_all_control_zones():
         try:
+            logging.info("Obteniendo todas las zonas de control")
             zones = Database.get_all_zones()
+            logging.info(f"Se obtuvieron {len(zones)} zonas de control")
             return zones
         except Exception as e:
-            logging.error(f"Failed to retrieve control zones: {e}")
+            logging.exception(f"Error al obtener zonas de control: {e}")
             return []
 
     @staticmethod
@@ -87,4 +94,8 @@ class DataManager:
             return []
     @staticmethod
     def close():
-        Database.close()
+        try:
+            Database.close()
+            logging.info("Conexión a la base de datos cerrada correctamente")
+        except Exception as e:
+            logging.exception(f"Error al cerrar la conexión a la base de datos: {e}")

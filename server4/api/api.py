@@ -1,4 +1,6 @@
+import logging
 from flask import Flask, jsonify, request
+
 from flask_socketio import SocketIO, emit
 from data.data_manager import DataManager
 from config import API_HOST, API_PORT
@@ -74,15 +76,25 @@ def handle_subscribe(data):
 @app.route('/api/zones', methods=['GET', 'POST'])
 def handle_zones():
     if request.method == 'GET':
-        zones = DataManager.get_all_control_zones()
-        return jsonify(zones)
+        try:
+            zones = DataManager.get_all_control_zones()
+            return jsonify(zones), 200
+        except Exception as e:
+            logging.exception(f"Error al obtener zonas: {e}")
+            return jsonify({"error": "Error interno del servidor al obtener zonas"}), 500
     elif request.method == 'POST':
-        data = request.json
-        zone_id = DataManager.insert_control_zone(data['name'], data['coordinates'], data.get('imeis', []))
-        if zone_id:
-            return jsonify({'id': zone_id, 'message': 'Zona creada exitosamente'}), 201
-        else:
-            return jsonify({'error': 'Error al crear la zona'}), 500
+        try:
+            data = request.json
+            logging.info(f"Datos recibidos para nueva zona: {data}")
+            zone_id = DataManager.insert_control_zone(data['name'], data['coordinates'], data.get('imeis', []))
+            if zone_id:
+                return jsonify({'id': zone_id, 'message': 'Zona creada exitosamente'}), 201
+            else:
+                return jsonify({'error': 'Error al crear la zona'}), 500
+        except Exception as e:
+            logging.exception(f"Error al crear zona: {e}")
+            return jsonify({"error": f"Error interno del servidor al crear zona: {str(e)}"}), 500
+
 
 @app.route('/api/zones/<int:zone_id>', methods=['PUT', 'DELETE'])
 def handle_zone(zone_id):
@@ -106,6 +118,9 @@ def get_zones_for_imei(imei):
     zones = DataManager.get_zones_for_imei(imei)
     return jsonify(zones)
 
+@app.teardown_appcontext
+def shutdown_session(exception=None):
+    DataManager.close()
 # Emisión de actualización de datos GPS
 #def emit_gps_update(imei, data):
 #    socketio.emit('gps_update', {'imei': imei, 'data': data})
