@@ -273,7 +273,7 @@ class Database:
         except sqlite3.Error as e:
             logging.error(f"Error fetching zones for IMEI: {e}")
             return []
-    @staticmethod
+    @classmethod
     def insert_zone(cls, name, coordinates, imeis=[]):
         conn = cls.get_connection()
         cursor = conn.cursor()
@@ -322,11 +322,11 @@ class Database:
             p1x, p1y = p2x, p2y
         return inside
     
-    @staticmethod
+    @classmethod
     def update_zone(cls, zone_id, name, coordinates, imeis=[]):
+        conn = cls.get_connection()
+        cursor = conn.cursor()
         try:
-            conn = cls.get_connection()
-            cursor = conn.cursor()
             cursor.execute('UPDATE zones SET name = ?, coordinates = ? WHERE id = ?', (name, json.dumps(coordinates), zone_id))
             cursor.execute('DELETE FROM zone_imei WHERE zone_id = ?', (zone_id,))
             for imei in imeis:
@@ -335,19 +335,21 @@ class Database:
             return True
         except sqlite3.Error as e:
             logging.error(f"Error updating zone: {e}")
+            conn.rollback()
             return False
 
-    @staticmethod
+    @classmethod
     def delete_zone(cls, zone_id):
+        conn = cls.get_connection()
+        cursor = conn.cursor()
         try:
-            conn = cls.get_connection()
-            cursor = conn.cursor()
             cursor.execute('DELETE FROM zones WHERE id = ?', (zone_id,))
             cursor.execute('DELETE FROM zone_imei WHERE zone_id = ?', (zone_id,))
             conn.commit()
             return True
         except sqlite3.Error as e:
             logging.error(f"Error deleting zone: {e}")
+            conn.rollback()
             return False
 
     @classmethod
@@ -392,8 +394,7 @@ class Database:
         except Exception as e:
             print(f"Error al obtener zonas para el IMEI {imei}: {e}")
             return []
-        finally:
-            connection.close()
+
     @classmethod
     def close(cls):
         if hasattr(cls._local, "connection"):
