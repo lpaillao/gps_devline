@@ -48,8 +48,8 @@ class Database:
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS zones (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                name TEXT,
-                coordinates TEXT
+                name TEXT NOT NULL,
+                coordinates TEXT NOT NULL
             )
         ''')
         cursor.execute('''
@@ -262,100 +262,88 @@ class Database:
             conn = cls.get_connection()
             cursor = conn.cursor()
             cursor.execute('''
-                SELECT cz.id, cz.name, cz.coordinates
-                FROM control_zones cz
-                LEFT JOIN zone_imei_association zia ON cz.id = zia.zone_id
-                WHERE zia.imei = ? OR zia.imei IS NULL
+                SELECT z.id, z.name, z.coordinates
+                FROM zones z
+                JOIN zone_imei zi ON z.id = zi.zone_id
+                WHERE zi.imei = ?
             ''', (imei,))
-            zones = cursor.fetchall()
-            return [{
-                'id': zone['id'],
-                'name': zone['name'],
-                'coordinates': json.loads(zone['coordinates'])
-            } for zone in zones]
+            return [dict(row) for row in cursor.fetchall()]
         except sqlite3.Error as e:
-            logging.error(f"Error al obtener zonas para IMEI: {e}")
+            logging.error(f"Error fetching zones for IMEI: {e}")
             return []
     @staticmethod
-    def insert_zone(name, coordinates, imeis=[]):
+    def insert_zone(cls, name, coordinates, imeis=[]):
         try:
-            connection = Database.get_connection()
-            cursor = connection.cursor()
-            
-            # Inserción de la zona en la tabla de zonas (modifica según tu esquema)
-            cursor.execute(
-                "INSERT INTO zones (name, coordinates) VALUES (?, ?)",
-                (name, coordinates)
-            )
+            conn = cls.get_connection()
+            cursor = conn.cursor()
+            cursor.execute('INSERT INTO zones (name, coordinates) VALUES (?, ?)', (name, json.dumps(coordinates)))
             zone_id = cursor.lastrowid
-            
-            # Relacionar los IMEIs con la zona
             for imei in imeis:
-                cursor.execute(
-                    "INSERT INTO zone_imei (zone_id, imei) VALUES (?, ?)",
-                    (zone_id, imei)
-                )
-            
-            connection.commit()
+                cursor.execute('INSERT INTO zone_imei (zone_id, imei) VALUES (?, ?)', (zone_id, imei))
+            conn.commit()
             return zone_id
-        except Exception as e:
-            print(f"Error al insertar zona: {e}")
+        except sqlite3.Error as e:
+            logging.error(f"Error inserting zone: {e}")
             return None
-        finally:
-            connection.close()
-
-    @staticmethod
-    def update_zone(zone_id, name, coordinates, imeis=[]):
+    @classmethod
+    def is_coordinate_in_zone(cls, lat, lon, zone_id):
         try:
-            connection = Database.get_connection()
-            cursor = connection.cursor()
-
-            # Actualizar la zona
-            cursor.execute(
-                "UPDATE zones SET name = ?, coordinates = ? WHERE id = ?",
-                (name, coordinates, zone_id)
-            )
-
-            # Eliminar las relaciones de IMEIs anteriores
-            cursor.execute(
-                "DELETE FROM zone_imei WHERE zone_id = ?",
-                (zone_id,)
-            )
-
-            # Insertar nuevas relaciones de IMEIs
+            conn = cls.get_connection()
+            cursor = conn.cursor()
+            cursor.execute('SELECT coordinates FROM zones WHERE id = ?', (zone_id,))
+            zone = cursor.fetchone()
+            if zone:
+                coordinates = json.loads(zone['coordinates'])
+                return cls.point_in_polygon(lat, lon, coordinates)
+            return False
+        except sqlite3.Error as e:
+            logging.error(f"Error checking coordinate in zone: {e}")
+            return False
+        
+    @staticmethod
+    def point_in_polygon(x, y, poly):
+        n = len(poly)
+        inside = False
+        p1x, p1y = poly[0]
+        for i in range(n + 1):
+            p2x, p2y = poly[i % n]
+            if y > min(p1y, p2y):
+                if y <= max(p1y, p2y):
+                    if x <= max(p1x, p2x):
+                        if p1y != p2y:
+                            xinters = (y - p1y) * (p2x - p1x) / (p2y - p1y) + p1x
+                        if p1x == p2x or x <= xinters:
+                            inside = not inside
+            p1x, p1y = p2x, p2y
+        return inside
+    
+    @staticmethod
+    def update_zone(cls, zone_id, name, coordinates, imeis=[]):
+        try:
+            conn = cls.get_connection()
+            cursor = conn.cursor()
+            cursor.execute('UPDATE zones SET name = ?, coordinates = ? WHERE id = ?', (name, json.dumps(coordinates), zone_id))
+            cursor.execute('DELETE FROM zone_imei WHERE zone_id = ?', (zone_id,))
             for imei in imeis:
-                cursor.execute(
-                    "INSERT INTO zone_imei (zone_id, imei) VALUES (?, ?)",
-                    (zone_id, imei)
-                )
-
-            connection.commit()
+                cursor.execute('INSERT INTO zone_imei (zone_id, imei) VALUES (?, ?)', (zone_id, imei))
+            conn.commit()
             return True
-        except Exception as e:
-            print(f"Error al actualizar zona: {e}")
+        except sqlite3.Error as e:
+            logging.error(f"Error updating zone: {e}")
             return False
-        finally:
-            connection.close()
 
     @staticmethod
-    def delete_zone(zone_id):
+    def delete_zone(cls, zone_id):
         try:
-            connection = Database.get_connection()
-            cursor = connection.cursor()
-
-            # Eliminar la zona
-            cursor.execute("DELETE FROM zones WHERE id = ?", (zone_id,))
-            
-            # Eliminar las relaciones de IMEIs
-            cursor.execute("DELETE FROM zone_imei WHERE zone_id = ?", (zone_id,))
-            
-            connection.commit()
+            conn = cls.get_connection()
+            cursor = conn.cursor()
+            cursor.execute('DELETE FROM zones WHERE id = ?', (zone_id,))
+            cursor.execute('DELETE FROM zone_imei WHERE zone_id = ?', (zone_id,))
+            conn.commit()
             return True
-        except Exception as e:
-            print(f"Error al eliminar zona: {e}")
+        except sqlite3.Error as e:
+            logging.error(f"Error deleting zone: {e}")
             return False
-        finally:
-            connection.close()
 
     @staticmethod
     def get_all_zones():
