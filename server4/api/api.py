@@ -30,10 +30,8 @@ def get_gps_history(imei):
     end_date = request.args.get('end_date', default=None, type=str)
     limit = request.args.get('limit', default=1000, type=int)
 
-    if not start_date:
-        start_date = (datetime.now() - timedelta(days=7)).strftime('%Y-%m-%d')
-    if not end_date:
-        end_date = datetime.now().strftime('%Y-%m-%d')
+    if not start_date or not end_date:
+        return jsonify({"error": "Se requieren fechas de inicio y fin"}), 400
 
     data = DataManager.get_gps_history(imei, start_date, end_date, limit)
     return jsonify(data)

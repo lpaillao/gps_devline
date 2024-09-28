@@ -3,7 +3,8 @@ import logging
 from config import DATABASE_NAME
 import threading
 import json
-from datetime import datetime
+from datetime import datetime, timedelta
+import pytz
 
 class Database:
     _local = threading.local()
@@ -133,9 +134,13 @@ class Database:
             connection = cls.get_connection()
             cursor = connection.cursor()
             
-            # Asegurarse de que las fechas estén en el formato correcto
-            start_date = cls.ensure_datetime_format(start_date)
-            end_date = cls.ensure_datetime_format(end_date)
+            # Convertir las fechas a objetos datetime y ajustar el rango
+            start_datetime = cls.parse_date(start_date)
+            end_datetime = cls.parse_date(end_date) + timedelta(days=1) - timedelta(seconds=1)
+            
+            # Convertir a formato ISO 8601
+            start_iso = start_datetime.isoformat()
+            end_iso = end_datetime.isoformat()
             
             query = '''
                 SELECT * FROM gps_data
@@ -143,12 +148,12 @@ class Database:
                 ORDER BY timestamp DESC
                 LIMIT ?
             '''
-            cursor.execute(query, (imei, start_date, end_date, limit))
+            cursor.execute(query, (imei, start_iso, end_iso, limit))
             
             results = [dict(row) for row in cursor.fetchall()]
             
             if not results:
-                logging.info(f"No se encontraron datos para IMEI {imei} entre {start_date} y {end_date}")
+                logging.info(f"No se encontraron datos para IMEI {imei} entre {start_iso} y {end_iso}")
             else:
                 logging.info(f"Se encontraron {len(results)} registros para IMEI {imei}")
             
@@ -156,6 +161,16 @@ class Database:
         except sqlite3.Error as e:
             logging.error(f"Error fetching GPS history: {e}")
             return []
+    @staticmethod
+    def parse_date(date_string):
+        # Intentar varios formatos de fecha
+        for fmt in ('%Y-%m-%d', '%Y-%m-%dT%H:%M:%S', '%Y-%m-%d %H:%M:%S'):
+            try:
+                return datetime.strptime(date_string, fmt).replace(tzinfo=pytz.UTC)
+            except ValueError:
+                continue
+        raise ValueError(f"Formato de fecha no reconocido: {date_string}")
+    
     @staticmethod
     def ensure_datetime_format(date_string):
         try:
