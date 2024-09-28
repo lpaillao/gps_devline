@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useTheme } from '../../contexts/ThemeContext';
 import axios from 'axios';
 
-const ZoneForm = ({ zone, coordinates, onSubmit, onCancel }) => {
+const ZoneForm = ({ zone, onSubmit, onCancel }) => {
   const [name, setName] = useState('');
   const [selectedImeis, setSelectedImeis] = useState([]);
   const [dispositivos, setDispositivos] = useState([]);
@@ -26,7 +26,7 @@ const ZoneForm = ({ zone, coordinates, onSubmit, onCancel }) => {
         setDispositivos(response.data.dispositivos);
       }
     } catch (error) {
-      console.error('Error fetching dispositivos:', error);
+      console.error('Error al obtener dispositivos:', error);
     }
   };
 
@@ -35,7 +35,7 @@ const ZoneForm = ({ zone, coordinates, onSubmit, onCancel }) => {
     onSubmit({
       id: zone ? zone.id : null,
       name,
-      coordinates: zone && zone.coordinates.length > 0 ? zone.coordinates : coordinates, // Usamos las coordenadas del mapa si no hay en la zona
+      coordinates: zone ? zone.coordinates : [],
       imeis: selectedImeis
     });
   };
@@ -49,14 +49,14 @@ const ZoneForm = ({ zone, coordinates, onSubmit, onCancel }) => {
   };
 
   return (
-    <div className="w-full lg:w-1/2">
+    <div className="w-full">
       <h2 className={`text-xl font-semibold ${text.primary} mb-4`}>
-        {zone ? 'Edit Control Zone' : 'Add Control Zone'}
+        {zone ? 'Editar Zona' : 'Añadir Zona'}
       </h2>
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
           <label htmlFor="name" className={`block ${text.primary} font-medium mb-1`}>
-            Zone Name
+            Nombre de la Zona
           </label>
           <input
             type="text"
@@ -69,7 +69,7 @@ const ZoneForm = ({ zone, coordinates, onSubmit, onCancel }) => {
         </div>
         <div>
           <label className={`block ${text.primary} font-medium mb-1`}>
-            Associated IMEIs
+            IMEIs Asociados
           </label>
           <div className="max-h-40 overflow-y-auto border border-gray-300 rounded-md p-2">
             {dispositivos.map(dispositivo => (
@@ -93,14 +93,14 @@ const ZoneForm = ({ zone, coordinates, onSubmit, onCancel }) => {
             type="submit"
             className={`${bg.primary} text-white px-4 py-2 rounded-lg`}
           >
-            {zone ? 'Update' : 'Add'} Zone
+            {zone ? 'Actualizar' : 'Añadir'} Zona
           </button>
           <button
             type="button"
             onClick={onCancel}
             className={`${bg.secondary} ${text.primary} px-4 py-2 rounded-lg`}
           >
-            Cancel
+            Cancelar
           </button>
         </div>
       </form>

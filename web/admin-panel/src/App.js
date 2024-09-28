@@ -4,6 +4,8 @@ import axios from 'axios';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { API_BASE_URL } from './config';
+import { ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 import Layout from './components/layout/Layout';
 import LandingPage from './components/LandingPage';
 import LoginPage from './components/LoginPage';
@@ -111,6 +113,7 @@ function App() {
                   <Layout>
                     <DynamicRoutes />
                   </Layout>
+                  <ToastContainer position="top-right" autoClose={3000} />
                 </ProtectedRoute>
               }
             />

@@ -1,20 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useTheme } from '../../contexts/ThemeContext';
+import { MapIcon } from '@heroicons/react/24/solid';
+import { GPS_SERVER_URL } from '../../config';
 import ZoneList from './ZoneList';
 import ZoneForm from './ZoneForm';
-import { MapIcon, PlusIcon } from '@heroicons/react/24/solid';
-import { GPS_SERVER_URL } from '../../config';
-import { MapContainer, TileLayer, FeatureGroup, Polygon } from 'react-leaflet';
-import { EditControl } from "react-leaflet-draw";
-import "leaflet/dist/leaflet.css";
-import "leaflet-draw/dist/leaflet.draw.css";
+import ZoneMap from './ZoneMap';
+import Modal from './Modal';
+import { toast } from 'react-toastify';
 
 const ControlZonesManagement = () => {
   const [zones, setZones] = useState([]);
   const [selectedZone, setSelectedZone] = useState(null);
-  const [isFormVisible, setIsFormVisible] = useState(false);
-  const [coordinates, setCoordinates] = useState([]);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isEditingMap, setIsEditingMap] = useState(false);
   const { text, bg } = useTheme();
 
   useEffect(() => {
@@ -26,7 +25,8 @@ const ControlZonesManagement = () => {
       const response = await axios.get(`${GPS_SERVER_URL}/zones`);
       setZones(response.data);
     } catch (error) {
-      console.error('Error fetching control zones:', error);
+      console.error('Error al obtener zonas de control:', error);
+      toast.error('Error al obtener zonas de control');
     }
   };
 
@@ -35,10 +35,13 @@ const ControlZonesManagement = () => {
       const response = await axios.post(`${GPS_SERVER_URL}/zones`, newZone);
       if (response.status === 201) {
         fetchZones();
-        setIsFormVisible(false);
+        setIsModalOpen(false);
+        setSelectedZone(null);
+        toast.success('Zona añadida correctamente');
       }
     } catch (error) {
-      console.error('Error adding control zone:', error);
+      console.error('Error al añadir zona de control:', error);
+      toast.error('Error al añadir zona de control');
     }
   };
 
@@ -48,106 +51,106 @@ const ControlZonesManagement = () => {
       if (response.status === 200) {
         fetchZones();
         setSelectedZone(null);
-        setIsFormVisible(false);
+        setIsModalOpen(false);
+        setIsEditingMap(false);
+        toast.success('Zona actualizada correctamente');
       }
     } catch (error) {
-      console.error('Error updating control zone:', error);
+      console.error('Error al actualizar zona de control:', error);
+      toast.error('Error al actualizar zona de control');
     }
-  };
-
-  const handleCreated = (e) => {
-    const { layer } = e;
-    const newCoordinates = layer.getLatLngs()[0].map(latlng => [latlng.lat, latlng.lng]);
-    setCoordinates(newCoordinates);
-  };
-
-  const handleEdited = (e) => {
-    const { layers } = e;
-    layers.eachLayer((layer) => {
-      const editedZone = {
-        id: layer.options.id,
-        name: layer.options.name,
-        coordinates: layer.getLatLngs()[0].map(latlng => [latlng.lat, latlng.lng])
-      };
-      handleUpdateZone(editedZone);
-    });
   };
 
   const handleDeleteZone = async (zoneId) => {
-    try {
-      const response = await axios.delete(`${GPS_SERVER_URL}/zones/${zoneId}`);
-      if (response.status === 200) {
-        fetchZones();
+    if (window.confirm('¿Estás seguro de que quieres eliminar esta zona?')) {
+      try {
+        const response = await axios.delete(`${GPS_SERVER_URL}/zones/${zoneId}`);
+        if (response.status === 200) {
+          fetchZones();
+          setSelectedZone(null);
+          toast.success('Zona eliminada correctamente');
+        }
+      } catch (error) {
+        console.error('Error al eliminar zona de control:', error);
+        toast.error('Error al eliminar zona de control');
       }
-    } catch (error) {
-      console.error('Error deleting control zone:', error);
     }
   };
 
-  const handleDeleted = (e) => {
-    const { layers } = e;
-    layers.eachLayer((layer) => {
-      handleDeleteZone(layer.options.id);
-    });
+  const handleZoneSelect = (zone) => {
+    setSelectedZone(zone);
+    setIsEditingMap(false);
+  };
+
+  const handleEditMapClick = () => {
+    setIsEditingMap(true);
+  };
+
+  const handleMapEdit = (editedZone) => {
+    setSelectedZone(editedZone);
+  };
+
+  const handleSaveMapEdit = async () => {
+    if (selectedZone) {
+      try {
+        await handleUpdateZone(selectedZone);
+      } catch (error) {
+        console.error('Error al guardar los cambios del mapa:', error);
+        toast.error('Error al guardar los cambios del mapa');
+      }
+    }
+    setIsEditingMap(false);
   };
 
   return (
-    <div className="flex flex-col space-y-6">
-      <div className="flex justify-between items-center">
-        <h1 className={`text-2xl font-bold ${text.primary} flex items-center`}>
-          <MapIcon className="w-8 h-8 mr-2 text-primary-500" />
-          Control Zones Management
-        </h1>
-        <button
-          onClick={() => setIsFormVisible(true)}
-          className={`${bg.primary} text-white px-4 py-2 rounded-lg flex items-center`}
-        >
-          <PlusIcon className="w-5 h-5 mr-2" />
-          Add Control Zone
-        </button>
+    <div className={`flex flex-col h-screen ${bg.primary} ${text.primary}`}>
+      <h1 className={`text-2xl font-bold flex items-center mb-6`}>
+        <MapIcon className="w-8 h-8 mr-2 text-primary-500" />
+        Gestión de Zonas de Control
+      </h1>
+      <div className="flex flex-1 space-x-6">
+        <div className="w-1/4">
+          <ZoneList
+            zones={zones}
+            selectedZone={selectedZone}
+            onSelectZone={handleZoneSelect}
+            onDeleteZone={handleDeleteZone}
+            onAddZone={() => {
+              setSelectedZone(null);
+              setIsModalOpen(true);
+            }}
+            onEditZone={() => setIsModalOpen(true)}
+            onEditMap={handleEditMapClick}
+          />
+        </div>
+        <div className="w-3/4 flex-1 relative">
+          <ZoneMap
+            zones={zones}
+            selectedZone={selectedZone}
+            isEditing={isEditingMap}
+            onZoneChange={handleMapEdit}
+          />
+          {isEditingMap && (
+            <div className="absolute top-4 left-4 z-[1000]">
+              <button
+                onClick={handleSaveMapEdit}
+                className={`${bg.primary} text-white px-4 py-2 rounded-lg shadow-md hover:bg-opacity-90 transition-all`}
+              >
+                Guardar Cambios del Mapa
+              </button>
+            </div>
+          )}
+        </div>
       </div>
-      <div className="flex flex-col lg:flex-row space-y-6 lg:space-y-0 lg:space-x-6">
-        <ZoneList
-          zones={zones}
-          onSelectZone={setSelectedZone}
-          onDeleteZone={handleDeleteZone}
-        />
-        {(isFormVisible || selectedZone) && (
+      {isModalOpen && (
+        <Modal onClose={() => setIsModalOpen(false)}>
           <ZoneForm
             zone={selectedZone}
-            coordinates={coordinates}
-            onSubmit={handleAddZone}
-            onCancel={() => {
-              setSelectedZone(null);
-              setIsFormVisible(false);
-              setCoordinates([]);
-            }}
+            onSubmit={selectedZone ? handleUpdateZone : handleAddZone}
+            onCancel={() => setIsModalOpen(false)}
           />
-        )}
-      </div>
-      <div className="w-full h-[500px]">
-        <MapContainer center={[-33.4569, -70.6483]} zoom={13} style={{ height: '100%', width: '100%' }}>
-          <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-          <FeatureGroup>
-            <EditControl
-              position="topright"
-              onCreated={handleCreated}
-              onEdited={handleEdited}
-              onDeleted={handleDeleted}
-              draw={{
-                rectangle: false,
-                circle: false,
-                circlemarker: false,
-                marker: false,
-                polyline: false
-              }}
-            />
-            {zones.map((zone) => (
-              <Polygon key={zone.id} positions={zone.coordinates} />
-            ))}
-          </FeatureGroup>
-        </MapContainer>
-      </div>
+        </Modal>
+      )}
     </div>
   );
 };
