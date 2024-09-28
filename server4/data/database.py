@@ -3,6 +3,8 @@ import logging
 from config import DATABASE_NAME
 import threading
 import json
+from datetime import datetime
+
 class Database:
     _local = threading.local()
     _lock = threading.Lock()
@@ -128,19 +130,41 @@ class Database:
     @classmethod
     def get_gps_history(cls, imei, start_date, end_date, limit=1000):
         try:
-            connection = Database.get_connection()
+            connection = cls.get_connection()
             cursor = connection.cursor()
-            cursor.execute('''
+            
+            # Asegurarse de que las fechas estén en el formato correcto
+            start_date = cls.ensure_datetime_format(start_date)
+            end_date = cls.ensure_datetime_format(end_date)
+            
+            query = '''
                 SELECT * FROM gps_data
                 WHERE imei = ? AND timestamp BETWEEN ? AND ?
                 ORDER BY timestamp DESC
                 LIMIT ?
-            ''', (imei, start_date, end_date, limit))
-            return [dict(row) for row in cursor.fetchall()]
+            '''
+            cursor.execute(query, (imei, start_date, end_date, limit))
+            
+            results = [dict(row) for row in cursor.fetchall()]
+            
+            if not results:
+                logging.info(f"No se encontraron datos para IMEI {imei} entre {start_date} y {end_date}")
+            else:
+                logging.info(f"Se encontraron {len(results)} registros para IMEI {imei}")
+            
+            return results
         except sqlite3.Error as e:
             logging.error(f"Error fetching GPS history: {e}")
             return []
-
+    @staticmethod
+    def ensure_datetime_format(date_string):
+        try:
+            # Intentar parsear la fecha
+            datetime.strptime(date_string, '%Y-%m-%d %H:%M:%S')
+            return date_string
+        except ValueError:
+            # Si falla, asumir que solo se dio la fecha y agregar la hora
+            return date_string + " 00:00:00"
     @classmethod
     def get_gps_summary(cls, imei):
         try:
