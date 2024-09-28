@@ -68,3 +68,6 @@ class ClientHandler(Thread):
         except Exception as e:
             logging.error(f"Error al manejar los datos: {e}")
             self.conn.send(struct.pack("!L", 0))
+
+        # Agregar un bucle para continuar recibiendo datos
+        self.handle_data()

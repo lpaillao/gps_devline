@@ -39,20 +39,26 @@ class Decoder:
                 if record:
                     records.append(record)
 
-            self.process_fleet_data(records)
-
-            num_of_data_end = int(self.payload[-4:-2], 16)
-            if num_of_data != num_of_data_end:
-                logging.warning(f"Number of records mismatch: start={num_of_data}, end={num_of_data_end}")
+            # Verificar si hay suficientes datos para leer el número final de registros
+            if len(self.payload) >= self.index + 4:
+                num_of_data_end = int(self.payload[-4:-2], 16)
+                if num_of_data != num_of_data_end:
+                    logging.warning(f"Number of records mismatch: start={num_of_data}, end={num_of_data_end}")
+            else:
+                logging.warning("Insufficient data to read final record count")
 
             return records
 
         except Exception as e:
             logging.error(f"Error decoding data: {e}")
-            return None
+            return []
 
     def parse_avl_record(self):
         try:
+            # Verificar si hay suficientes datos para un registro AVL completo
+            if len(self.payload) < self.index + 16 + 2 + 8 + 8 + 4 + 4 + 2 + 4:
+                logging.warning("Insufficient data for a complete AVL record")
+                return None
             timestamp = struct.unpack('>Q', bytes.fromhex(self.payload[self.index:self.index + 16]))[0]
             timestamp = datetime.fromtimestamp(timestamp / 1000, timezone.utc)
             self.index += 16
@@ -97,6 +103,9 @@ class Decoder:
         io_records = {}
 
         try:
+            if len(self.payload) < self.index + 4:
+                logging.warning("Insufficient data for IO header")
+                return io_records
             event_io_id = int(self.payload[self.index:self.index + 2], 16)
             self.index += 2
             io_records['Event IO ID'] = event_io_id
