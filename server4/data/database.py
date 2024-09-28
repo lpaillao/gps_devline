@@ -128,8 +128,8 @@ class Database:
     @classmethod
     def get_gps_history(cls, imei, start_date, end_date, limit=1000):
         try:
-            conn = cls.get_connection()
-            cursor = conn.cursor()
+            connection = Database.get_connection()
+            cursor = connection.cursor()
             cursor.execute('''
                 SELECT * FROM gps_data
                 WHERE imei = ? AND timestamp BETWEEN ? AND ?

@@ -1,0 +1,20 @@
+server4                  
+├─ api                   
+│  ├─ __init__.py        
+│  └─ api.py             
+├─ data                  
+│  ├─ __init__.py        
+│  ├─ data_manager.py    
+│  └─ database.py        
+├─ server                
+│  ├─ __init__.py        
+│  ├─ client_handler.py  
+│  └─ gps_server.py      
+├─ utils                 
+│  ├─ __init__.py        
+│  └─ decoder.py         
+├─ config.py             
+├─ gps_tracker.html      
+├─ main.py               
+├─ requirements.txt      
+└─ urltest.txt           

@@ -1,5 +1,5 @@
 backend/vendor
-
+server4/gps_tracking.db
 server2/gps_server.log
 server2/__pycache__/
 server2/gps_data/*
