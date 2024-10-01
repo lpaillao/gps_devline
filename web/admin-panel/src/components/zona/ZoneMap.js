@@ -5,9 +5,9 @@ import L from 'leaflet';
 import "leaflet/dist/leaflet.css";
 import "leaflet-draw/dist/leaflet.draw.css";
 
-const ZoneMap = ({ zones, selectedZone, isEditing, onZoneChange }) => {
+const ZoneMap = ({ zones, selectedZone, isEditing, onZoneChange, mapMode }) => {
   useEffect(() => {
-    if (selectedZone && window.map) {
+    if (selectedZone && window.map && selectedZone.coordinates && selectedZone.coordinates.length > 0) {
       const bounds = selectedZone.coordinates.map(coord => [coord[0], coord[1]]);
       window.map.fitBounds(bounds);
     }
@@ -31,6 +31,7 @@ const ZoneMap = ({ zones, selectedZone, isEditing, onZoneChange }) => {
   };
 
   const getZoneCenter = (coordinates) => {
+    if (!coordinates || coordinates.length === 0) return null;
     const bounds = L.latLngBounds(coordinates);
     return bounds.getCenter();
   };
@@ -48,7 +49,7 @@ const ZoneMap = ({ zones, selectedZone, isEditing, onZoneChange }) => {
         <ZoomControl position="topright" />
         <ScaleControl position="bottomright" />
         <FeatureGroup>
-          {isEditing && (
+          {mapMode !== 'view' && (
             <EditControl
               position="topright"
               onCreated={handleCreated}
@@ -64,37 +65,41 @@ const ZoneMap = ({ zones, selectedZone, isEditing, onZoneChange }) => {
             />
           )}
           {zones.map((zone) => (
-            <Polygon 
-              key={zone.id} 
-              positions={zone.coordinates}
-              pathOptions={{ 
-                color: selectedZone && selectedZone.id === zone.id ? 'blue' : 'red',
-                fillColor: selectedZone && selectedZone.id === zone.id ? 'lightblue' : 'pink',
-                fillOpacity: 0.3,
-                weight: selectedZone && selectedZone.id === zone.id ? 3 : 2
-              }}
-              eventHandlers={{
-                mouseover: (e) => {
-                  const layer = e.target;
-                  layer.setStyle({
-                    fillOpacity: 0.7
-                  });
-                },
-                mouseout: (e) => {
-                  const layer = e.target;
-                  layer.setStyle({
-                    fillOpacity: 0.3
-                  });
-                },
-                click: () => {
-                  onZoneChange(zone);
-                }
-              }}
-            >
-              <Tooltip permanent direction="center" className="custom-tooltip">
-                {zone.name}
-              </Tooltip>
-            </Polygon>
+            zone.coordinates && zone.coordinates.length > 0 ? (
+              <Polygon 
+                key={zone.id} 
+                positions={zone.coordinates}
+                pathOptions={{ 
+                  color: selectedZone && selectedZone.id === zone.id ? 'blue' : 'red',
+                  fillColor: selectedZone && selectedZone.id === zone.id ? 'lightblue' : 'pink',
+                  fillOpacity: 0.3,
+                  weight: selectedZone && selectedZone.id === zone.id ? 3 : 2
+                }}
+                eventHandlers={{
+                  mouseover: (e) => {
+                    const layer = e.target;
+                    layer.setStyle({
+                      fillOpacity: 0.7
+                    });
+                  },
+                  mouseout: (e) => {
+                    const layer = e.target;
+                    layer.setStyle({
+                      fillOpacity: 0.3
+                    });
+                  },
+                  click: () => {
+                    onZoneChange(zone);
+                  }
+                }}
+              >
+                {getZoneCenter(zone.coordinates) && (
+                  <Tooltip permanent direction="center" className="custom-tooltip">
+                    {zone.name}
+                  </Tooltip>
+                )}
+              </Polygon>
+            ) : null
           ))}
         </FeatureGroup>
       </MapContainer>

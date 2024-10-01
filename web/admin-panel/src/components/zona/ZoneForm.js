@@ -2,16 +2,16 @@ import React, { useState, useEffect } from 'react';
 import { useTheme } from '../../contexts/ThemeContext';
 import axios from 'axios';
 
-const ZoneForm = ({ zone, onSubmit, onCancel }) => {
+const ZoneForm = ({ zone, onSubmit, onCancel, isCreating }) => {
   const [name, setName] = useState('');
   const [selectedImeis, setSelectedImeis] = useState([]);
   const [dispositivos, setDispositivos] = useState([]);
-  const { text, bg } = useTheme();
+  const { isDarkMode, text, bg } = useTheme();
 
   useEffect(() => {
     fetchDispositivos();
     if (zone) {
-      setName(zone.name);
+      setName(zone.name || '');
       setSelectedImeis(zone.imeis || []);
     } else {
       setName('');
@@ -30,6 +30,14 @@ const ZoneForm = ({ zone, onSubmit, onCancel }) => {
     }
   };
 
+  const handleImeiChange = (imei) => {
+    setSelectedImeis(prev => 
+      prev.includes(imei) 
+        ? prev.filter(i => i !== imei) 
+        : [...prev, imei]
+    );
+  };
+
   const handleSubmit = (e) => {
     e.preventDefault();
     onSubmit({
@@ -40,71 +48,58 @@ const ZoneForm = ({ zone, onSubmit, onCancel }) => {
     });
   };
 
-  const handleImeiChange = (imei) => {
-    setSelectedImeis(prev => 
-      prev.includes(imei) 
-        ? prev.filter(i => i !== imei) 
-        : [...prev, imei]
-    );
-  };
-
   return (
-    <div className="w-full">
-      <h2 className={`text-xl font-semibold ${text.primary} mb-4`}>
-        {zone ? 'Editar Zona' : 'Añadir Zona'}
-      </h2>
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <div>
-          <label htmlFor="name" className={`block ${text.primary} font-medium mb-1`}>
-            Nombre de la Zona
-          </label>
-          <input
-            type="text"
-            id="name"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            className={`w-full px-3 py-2 ${bg.secondary} ${text.primary} rounded-md`}
-            required
-          />
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div>
+        <label htmlFor="name" className={`block ${text.secondary} font-medium mb-1`}>
+          Nombre de la Zona
+        </label>
+        <input
+          type="text"
+          id="name"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          className={`w-full px-3 py-2 ${isDarkMode ? 'bg-gray-700 text-white' : 'bg-white text-gray-900'} rounded-md border ${isDarkMode ? 'border-gray-600' : 'border-gray-300'} focus:outline-none focus:ring-2 focus:ring-primary-500`}
+          required
+        />
+      </div>
+      <div>
+        <label className={`block ${text.secondary} font-medium mb-1`}>
+          IMEIs Asociados
+        </label>
+        <div className={`max-h-40 overflow-y-auto ${isDarkMode ? 'bg-gray-700' : 'bg-gray-100'} rounded-md p-2`}>
+          {dispositivos.map(dispositivo => (
+            <div key={dispositivo.id} className="flex items-center mb-2">
+              <input
+                type="checkbox"
+                id={`imei-${dispositivo.id}`}
+                checked={selectedImeis.includes(dispositivo.imei)}
+                onChange={() => handleImeiChange(dispositivo.imei)}
+                className="mr-2 form-checkbox text-primary-500 focus:ring-primary-500"
+              />
+              <label htmlFor={`imei-${dispositivo.id}`} className={`${text.primary} text-sm`}>
+                {dispositivo.imei} - {dispositivo.modelo} ({dispositivo.marca})
+              </label>
+            </div>
+          ))}
         </div>
-        <div>
-          <label className={`block ${text.primary} font-medium mb-1`}>
-            IMEIs Asociados
-          </label>
-          <div className="max-h-40 overflow-y-auto border border-gray-300 rounded-md p-2">
-            {dispositivos.map(dispositivo => (
-              <div key={dispositivo.id} className="flex items-center mb-2">
-                <input
-                  type="checkbox"
-                  id={`imei-${dispositivo.id}`}
-                  checked={selectedImeis.includes(dispositivo.imei)}
-                  onChange={() => handleImeiChange(dispositivo.imei)}
-                  className="mr-2"
-                />
-                <label htmlFor={`imei-${dispositivo.id}`} className={`${text.primary}`}>
-                  {dispositivo.imei} - {dispositivo.modelo} ({dispositivo.marca})
-                </label>
-              </div>
-            ))}
-          </div>
-        </div>
-        <div className="flex space-x-4">
-          <button
-            type="submit"
-            className={`${bg.primary} text-white px-4 py-2 rounded-lg`}
-          >
-            {zone ? 'Actualizar' : 'Añadir'} Zona
-          </button>
-          <button
-            type="button"
-            onClick={onCancel}
-            className={`${bg.secondary} ${text.primary} px-4 py-2 rounded-lg`}
-          >
-            Cancelar
-          </button>
-        </div>
-      </form>
-    </div>
+      </div>
+      <div className="flex space-x-4">
+        <button
+          type="submit"
+          className={`${bg.primary} text-white px-4 py-2 rounded-lg hover:bg-opacity-90 transition-all duration-200`}
+        >
+          {isCreating ? 'Crear Zona' : 'Actualizar Zona'}
+        </button>
+        <button
+          type="button"
+          onClick={onCancel}
+          className={`${isDarkMode ? 'bg-gray-600 text-white' : 'bg-gray-200 text-gray-800'} px-4 py-2 rounded-lg hover:bg-opacity-90 transition-all duration-200`}
+        >
+          Cancelar
+        </button>
+      </div>
+    </form>
   );
 };
 

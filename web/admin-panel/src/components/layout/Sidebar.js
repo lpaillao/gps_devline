@@ -43,16 +43,16 @@ const Sidebar = ({ minimized, toggleMinimize }) => {
   };
 
   return (
-    <div className="flex flex-col h-full">
-      <div className="flex items-center justify-between h-16 px-4 border-b dark:border-gray-700">
-        {!minimized && <span className="text-2xl font-semibold text-gray-800 dark:text-white">Panel de Administración</span>}
-        <button onClick={toggleMinimize} className="p-1 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700">
-          {minimized ? <ChevronRight size={20} /> : <ChevronLeft size={20} />}
+    <div className="flex flex-col h-full bg-white dark:bg-dark-blue-800">
+      <div className="flex items-center justify-between h-16 px-4 border-b dark:border-dark-blue-700">
+        {!minimized && <span className="text-2xl font-semibold text-neutral-800 dark:text-neutral-100">Panel de Administración</span>}
+        <button onClick={toggleMinimize} className="p-1 rounded-full hover:bg-neutral-200 dark:hover:bg-dark-blue-700">
+          {minimized ? <ChevronRight size={20} className="text-neutral-600 dark:text-neutral-400" /> : <ChevronLeft size={20} className="text-neutral-600 dark:text-neutral-400" />}
         </button>
       </div>
       <nav className="flex-1 overflow-y-auto">
         {error && (
-          <div className="px-4 py-2 mt-2 text-red-600 bg-red-100 rounded-lg">
+          <div className="px-4 py-2 mt-2 text-danger-600 bg-danger-100 dark:text-danger-400 dark:bg-danger-900 rounded-lg">
             <AlertCircle className="inline-block mr-2" size={20} />
             {error}
           </div>
@@ -62,8 +62,8 @@ const Sidebar = ({ minimized, toggleMinimize }) => {
             <Link
               to={item.url}
               className={`
-                flex items-center px-4 py-2 mt-2 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg
-                ${location.pathname === item.url ? 'bg-gray-200 dark:bg-gray-700' : ''}
+                flex items-center px-4 py-2 mt-2 text-neutral-600 dark:text-neutral-300 hover:bg-neutral-200 dark:hover:bg-dark-blue-700 rounded-lg
+                ${location.pathname === item.url ? 'bg-neutral-200 dark:bg-dark-blue-700' : ''}
               `}
             >
               {React.createElement(getIcon(item.icon), { className: "w-6 h-6" })}

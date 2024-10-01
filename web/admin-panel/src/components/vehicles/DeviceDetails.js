@@ -8,7 +8,7 @@ import { motion } from 'framer-motion';
 const DeviceDetails = ({ device }) => {
   const [latestData, setLatestData] = useState(null);
   const [error, setError] = useState(null);
-  const { text, bg } = useTheme();
+  const { isDarkMode } = useTheme();
 
   const fetchLatestData = useCallback(async () => {
     try {
@@ -32,7 +32,7 @@ const DeviceDetails = ({ device }) => {
 
   const DataWidget = ({ icon: IconComponent, title, value, color }) => (
     <motion.div 
-      className={`${bg.secondary} rounded-xl shadow-md p-4 flex items-center space-x-4`}
+      className="bg-white dark:bg-dark-blue-700 rounded-xl shadow-md p-4 flex items-center space-x-4"
       whileHover={{ scale: 1.05 }}
       whileTap={{ scale: 0.95 }}
     >
@@ -40,21 +40,21 @@ const DeviceDetails = ({ device }) => {
         <IconComponent className="w-6 h-6 text-white" />
       </div>
       <div>
-        <p className={`${text.secondary} text-sm`}>{title}</p>
-        <p className={`${text.primary} font-semibold text-lg`}>{value}</p>
+        <p className="text-neutral-600 dark:text-neutral-300 text-sm">{title}</p>
+        <p className="text-neutral-900 dark:text-neutral-100 font-semibold text-lg">{value}</p>
       </div>
     </motion.div>
   );
 
   return (
-    <div className={`${bg.secondary} rounded-xl shadow-lg p-6`}>
-      <h2 className={`text-2xl font-bold mb-6 ${text.primary} flex items-center`}>
+    <div className="bg-white dark:bg-dark-blue-800 rounded-xl shadow-lg p-6">
+      <h2 className="text-2xl font-bold mb-6 text-neutral-900 dark:text-neutral-100 flex items-center">
         <TruckIcon className="w-8 h-8 mr-2 text-primary-500" />
         Detalles de {device.imei}
       </h2>
       {error && (
         <motion.div 
-          className={`${text.error} mb-4`}
+          className="text-red-600 dark:text-red-400 mb-4"
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
         >

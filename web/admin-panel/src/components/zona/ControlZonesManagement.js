@@ -1,20 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useTheme } from '../../contexts/ThemeContext';
-import { MapIcon } from '@heroicons/react/24/solid';
+import { MapIcon, XMarkIcon } from '@heroicons/react/24/solid';
 import { GPS_SERVER_URL } from '../../config';
 import ZoneList from './ZoneList';
 import ZoneForm from './ZoneForm';
 import ZoneMap from './ZoneMap';
-import Modal from './Modal';
 import { toast } from 'react-toastify';
 
 const ControlZonesManagement = () => {
   const [zones, setZones] = useState([]);
   const [selectedZone, setSelectedZone] = useState(null);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isEditingMap, setIsEditingMap] = useState(false);
-  const { text, bg } = useTheme();
+  const [mapMode, setMapMode] = useState('view'); // 'view', 'edit', 'create'
+  const [newZoneData, setNewZoneData] = useState(null);
+  const [showSidebar, setShowSidebar] = useState(false);
+  const { isDarkMode } = useTheme();
 
   useEffect(() => {
     fetchZones();
@@ -30,13 +30,25 @@ const ControlZonesManagement = () => {
     }
   };
 
-  const handleAddZone = async (newZone) => {
+  const handleAddZone = async (zoneFormData) => {
+    if (!newZoneData || !newZoneData.coordinates || newZoneData.coordinates.length === 0) {
+      toast.error('Debe dibujar una zona en el mapa antes de guardar');
+      return;
+    }
+
+    const newZone = {
+      ...zoneFormData,
+      coordinates: newZoneData.coordinates
+    };
+
     try {
       const response = await axios.post(`${GPS_SERVER_URL}/zones`, newZone);
       if (response.status === 201) {
         fetchZones();
-        setIsModalOpen(false);
         setSelectedZone(null);
+        setMapMode('view');
+        setNewZoneData(null);
+        setShowSidebar(false);
         toast.success('Zona añadida correctamente');
       }
     } catch (error) {
@@ -51,8 +63,8 @@ const ControlZonesManagement = () => {
       if (response.status === 200) {
         fetchZones();
         setSelectedZone(null);
-        setIsModalOpen(false);
-        setIsEditingMap(false);
+        setMapMode('view');
+        setShowSidebar(false);
         toast.success('Zona actualizada correctamente');
       }
     } catch (error) {
@@ -68,6 +80,8 @@ const ControlZonesManagement = () => {
         if (response.status === 200) {
           fetchZones();
           setSelectedZone(null);
+          setMapMode('view');
+          setShowSidebar(false);
           toast.success('Zona eliminada correctamente');
         }
       } catch (error) {
@@ -79,33 +93,47 @@ const ControlZonesManagement = () => {
 
   const handleZoneSelect = (zone) => {
     setSelectedZone(zone);
-    setIsEditingMap(false);
+    setMapMode('view');
+    setShowSidebar(true);
   };
 
   const handleEditMapClick = () => {
-    setIsEditingMap(true);
+    setMapMode('edit');
+    setShowSidebar(true);
+  };
+
+  const handleCreateZoneClick = () => {
+    setSelectedZone(null);
+    setNewZoneData(null);
+    setMapMode('create');
+    setShowSidebar(true);
   };
 
   const handleMapEdit = (editedZone) => {
-    setSelectedZone(editedZone);
+    if (mapMode === 'create') {
+      setNewZoneData(editedZone);
+    } else {
+      setSelectedZone(editedZone);
+    }
   };
 
-  const handleSaveMapEdit = async () => {
-    if (selectedZone) {
-      try {
-        await handleUpdateZone(selectedZone);
-      } catch (error) {
-        console.error('Error al guardar los cambios del mapa:', error);
-        toast.error('Error al guardar los cambios del mapa');
-      }
-    }
-    setIsEditingMap(false);
+  const handleCancelEdit = () => {
+    setMapMode('view');
+    setSelectedZone(null);
+    setNewZoneData(null);
+    setShowSidebar(false);
+  };
+
+  const handleEditZone = (zone) => {
+    setSelectedZone(zone);
+    setMapMode('edit');
+    setShowSidebar(true);
   };
 
   return (
-    <div className={`flex flex-col h-screen ${bg.primary} ${text.primary}`}>
-      <h1 className={`text-2xl font-bold flex items-center mb-6`}>
-        <MapIcon className="w-8 h-8 mr-2 text-primary-500" />
+    <div className="flex flex-col h-screen bg-neutral-50 dark:bg-dark-blue-900 text-neutral-900 dark:text-neutral-50">
+      <h1 className="text-2xl font-bold flex items-center mb-6 text-primary-600 dark:text-primary-400">
+        <MapIcon className="w-8 h-8 mr-2" />
         Gestión de Zonas de Control
       </h1>
       <div className="flex flex-1 space-x-6">
@@ -115,42 +143,48 @@ const ControlZonesManagement = () => {
             selectedZone={selectedZone}
             onSelectZone={handleZoneSelect}
             onDeleteZone={handleDeleteZone}
-            onAddZone={() => {
-              setSelectedZone(null);
-              setIsModalOpen(true);
-            }}
-            onEditZone={() => setIsModalOpen(true)}
-            onEditMap={handleEditMapClick}
+            onAddZone={handleCreateZoneClick}
+            onEditZone={handleEditZone}
           />
         </div>
-        <div className="w-3/4 flex-1 relative">
-          <ZoneMap
-            zones={zones}
-            selectedZone={selectedZone}
-            isEditing={isEditingMap}
-            onZoneChange={handleMapEdit}
-          />
-          {isEditingMap && (
-            <div className="absolute top-4 left-4 z-[1000]">
-              <button
-                onClick={handleSaveMapEdit}
-                className={`${bg.primary} text-white px-4 py-2 rounded-lg shadow-md hover:bg-opacity-90 transition-all`}
-              >
-                Guardar Cambios del Mapa
-              </button>
+        <div className="flex-1 flex">
+          <div className={`flex-1 relative ${showSidebar ? 'w-2/3' : 'w-full'}`}>
+            <ZoneMap
+              zones={zones}
+              selectedZone={selectedZone}
+              isEditing={mapMode !== 'view'}
+              onZoneChange={handleMapEdit}
+              mapMode={mapMode}
+            />
+            <div className="absolute top-4 right-12 z-[1000] bg-white dark:bg-dark-blue-800 p-2 rounded-lg shadow-md">
+              <span className="font-bold text-neutral-700 dark:text-neutral-200">
+                Modo: {mapMode === 'view' ? 'Visualización' : mapMode === 'edit' ? 'Edición' : 'Creación'}
+              </span>
+            </div>
+          </div>
+          {showSidebar && (
+            <div className="w-1/3 bg-white dark:bg-dark-blue-800 text-neutral-900 dark:text-neutral-100 p-4 shadow-lg overflow-y-auto transition-all duration-300 ease-in-out">
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-xl font-semibold text-primary-600 dark:text-primary-400">
+                  {mapMode === 'create' ? 'Crear Nueva Zona' : 'Editar Zona'}
+                </h2>
+                <button 
+                  onClick={handleCancelEdit} 
+                  className="text-neutral-500 hover:text-neutral-700 dark:text-neutral-400 dark:hover:text-neutral-200 transition-colors duration-200"
+                >
+                  <XMarkIcon className="w-6 h-6" />
+                </button>
+              </div>
+              <ZoneForm
+                zone={mapMode === 'create' ? newZoneData : selectedZone}
+                onSubmit={mapMode === 'create' ? handleAddZone : handleUpdateZone}
+                onCancel={handleCancelEdit}
+                isCreating={mapMode === 'create'}
+              />
             </div>
           )}
         </div>
       </div>
-      {isModalOpen && (
-        <Modal onClose={() => setIsModalOpen(false)}>
-          <ZoneForm
-            zone={selectedZone}
-            onSubmit={selectedZone ? handleUpdateZone : handleAddZone}
-            onCancel={() => setIsModalOpen(false)}
-          />
-        </Modal>
-      )}
     </div>
   );
 };

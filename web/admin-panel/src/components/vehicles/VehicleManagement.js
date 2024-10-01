@@ -24,7 +24,7 @@ const VehicleManagement = () => {
   const [pointLimit, setPointLimit] = useState(100);
   const socketRef = useRef(null);
   const { user } = useAuth();
-  const { text, bg } = useTheme();
+  const { isDarkMode } = useTheme();
 
   const handleGPSUpdate = useCallback((data) => {
     console.log('Received GPS update:', data);
@@ -174,10 +174,10 @@ const VehicleManagement = () => {
     };
   }, [connectSocket, disconnectSocket, fetchDevices, fetchConnectedDevices]);
 
-  return (
-    <div className={`${bg.primary} min-h-screen p-6`}>
-      <h1 className={`${text.primary} text-3xl font-bold mb-6 flex items-center`}>
-        <TruckIcon className="w-8 h-8 mr-2 text-primary-500" />
+return (
+    <div className="min-h-screen p-6 bg-neutral-50 dark:bg-dark-blue-900 text-neutral-900 dark:text-neutral-50">
+      <h1 className="text-3xl font-bold mb-6 flex items-center text-primary-600 dark:text-primary-400">
+        <TruckIcon className="w-8 h-8 mr-2" />
         Gestión de Vehículos
       </h1>
       <div className="flex flex-col lg:flex-row gap-6">
@@ -192,33 +192,45 @@ const VehicleManagement = () => {
             <motion.div 
               initial={{ opacity: 0, y: -20 }}
               animate={{ opacity: 1, y: 0 }}
-              className={`${bg.error} ${text.error} p-4 rounded-md shadow-md`}
+              className="bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-100 p-4 rounded-md shadow-md"
             >
               {error}
             </motion.div>
           )}
           {selectedDevice && (
             <>
-              <div className={`${bg.secondary} rounded-xl shadow-lg p-4 flex justify-between items-center`}>
-                <h2 className={`${text.primary} text-xl font-semibold`}>
+              <div className="bg-white dark:bg-dark-blue-800 rounded-xl shadow-lg p-4 flex justify-between items-center">
+                <h2 className="text-xl font-semibold text-neutral-800 dark:text-neutral-100">
                   {selectedDevice.imei} - {selectedDevice.modelo}
                 </h2>
                 <div className="flex space-x-2">
                   <button
                     onClick={() => setActiveTab('map')}
-                    className={`px-4 py-2 rounded-md transition-colors ${activeTab === 'map' ? bg.primary : bg.secondary} ${text.primary}`}
+                    className={`px-4 py-2 rounded-md transition-colors ${
+                      activeTab === 'map' 
+                        ? 'bg-primary-500 dark:bg-primary-600 text-white' 
+                        : 'bg-neutral-200 dark:bg-dark-blue-700 text-neutral-700 dark:text-neutral-200'
+                    }`}
                   >
                     <MapIcon className="w-5 h-5" />
                   </button>
                   <button
                     onClick={() => setActiveTab('details')}
-                    className={`px-4 py-2 rounded-md transition-colors ${activeTab === 'details' ? bg.primary : bg.secondary} ${text.primary}`}
+                    className={`px-4 py-2 rounded-md transition-colors ${
+                      activeTab === 'details' 
+                        ? 'bg-primary-500 dark:bg-primary-600 text-white' 
+                        : 'bg-neutral-200 dark:bg-dark-blue-700 text-neutral-700 dark:text-neutral-200'
+                    }`}
                   >
                     <TruckIcon className="w-5 h-5" />
                   </button>
                   <button
                     onClick={() => setActiveTab('stats')}
-                    className={`px-4 py-2 rounded-md transition-colors ${activeTab === 'stats' ? bg.primary : bg.secondary} ${text.primary}`}
+                    className={`px-4 py-2 rounded-md transition-colors ${
+                      activeTab === 'stats' 
+                        ? 'bg-primary-500 dark:bg-primary-600 text-white' 
+                        : 'bg-neutral-200 dark:bg-dark-blue-700 text-neutral-700 dark:text-neutral-200'
+                    }`}
                   >
                     <ChartBarIcon className="w-5 h-5" />
                   </button>
@@ -231,6 +243,7 @@ const VehicleManagement = () => {
                   animate={{ opacity: 1, x: 0 }}
                   exit={{ opacity: 0, x: -20 }}
                   transition={{ duration: 0.3 }}
+                  className="bg-white dark:bg-dark-blue-800 rounded-xl shadow-lg overflow-hidden"
                 >
                   {activeTab === 'map' && (
                     <MapComponent 
@@ -250,9 +263,9 @@ const VehicleManagement = () => {
                     />
                   )}
                   {activeTab === 'stats' && (
-                    <div className={`${bg.secondary} rounded-xl shadow-lg p-6`}>
-                      <h3 className={`${text.primary} text-xl font-semibold mb-4`}>Estadísticas del Vehículo</h3>
-                      <p className={`${text.secondary}`}>Próximamente: Gráficos y estadísticas detalladas del vehículo.</p>
+                    <div className="p-6">
+                      <h3 className="text-xl font-semibold mb-4 text-neutral-800 dark:text-neutral-100">Estadísticas del Vehículo</h3>
+                      <p className="text-neutral-600 dark:text-neutral-300">Próximamente: Gráficos y estadísticas detalladas del vehículo.</p>
                     </div>
                   )}
                 </motion.div>
@@ -260,7 +273,11 @@ const VehicleManagement = () => {
               {connectedDevices.includes(selectedDevice.imei) && (
                 <motion.button
                   onClick={toggleLiveTracking}
-                  className={`px-4 py-2 rounded-md ${liveTracking ? bg.warning : bg.success} ${text.primary} transition-colors`}
+                  className={`px-4 py-2 rounded-md ${
+                    liveTracking 
+                      ? 'bg-warning-500 dark:bg-warning-600 text-white' 
+                      : 'bg-success-500 dark:bg-success-600 text-white'
+                  } transition-colors`}
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
                 >

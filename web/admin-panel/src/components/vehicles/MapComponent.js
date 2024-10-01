@@ -11,6 +11,7 @@ import { GPS_SERVER_URL } from '../../config';
 import { MagnifyingGlassIcon } from '@heroicons/react/24/solid';
 import HistorySlider from './HistorySlider';
 
+
 const startIcon = new L.Icon({
   iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png',
   shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
@@ -113,8 +114,8 @@ const MapComponent = ({
   console.log('Rendering MapComponent:', { historyPointExists: !!historyPoint, historyDataLength: localHistoryData.length });
 
   return (
-    <motion.div
-      className="rounded-xl shadow-lg overflow-hidden"
+<motion.div
+      className="rounded-xl shadow-lg overflow-hidden bg-white dark:bg-dark-blue-800"
       variants={mapVariants}
       initial="hidden"
       animate="visible"
@@ -144,7 +145,7 @@ const MapComponent = ({
           <Marker position={[historyPoint.latitude, historyPoint.longitude]} icon={endIcon} />
         )}
       </MapContainer>
-      <div className={`${bg.secondary} p-4`}>
+      <div className="p-4 bg-neutral-100 dark:bg-dark-blue-700">
         {localHistoryData.length > 0 && (
           <HistorySlider
             historyData={localHistoryData}
@@ -152,34 +153,34 @@ const MapComponent = ({
           />
         )}
 
-        <h3 className={`${text.primary} text-xl font-semibold mb-4 mt-6`}>Búsqueda de Historial</h3>
+        <h3 className="text-xl font-semibold mb-4 mt-6 text-neutral-800 dark:text-neutral-100">Búsqueda de Historial</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
           <div>
-            <label className={`block ${text.secondary} text-sm font-medium mb-1`}>Fecha de inicio</label>
+            <label className="block text-sm font-medium mb-1 text-neutral-600 dark:text-neutral-300">Fecha de inicio</label>
             <DatePicker
               selected={startDate}
               onChange={date => setStartDate(date)}
               maxDate={new Date()}
-              className={`w-full px-3 py-2 border rounded-md ${bg.input} ${text.primary}`}
+              className="w-full px-3 py-2 border rounded-md bg-white dark:bg-dark-blue-600 text-neutral-800 dark:text-neutral-100"
             />
           </div>
           <div>
-            <label className={`block ${text.secondary} text-sm font-medium mb-1`}>Fecha de fin</label>
+            <label className="block text-sm font-medium mb-1 text-neutral-600 dark:text-neutral-300">Fecha de fin</label>
             <DatePicker
               selected={endDate}
               onChange={date => setEndDate(date)}
               minDate={startDate}
               maxDate={new Date()}
-              className={`w-full px-3 py-2 border rounded-md ${bg.input} ${text.primary}`}
+              className="w-full px-3 py-2 border rounded-md bg-white dark:bg-dark-blue-600 text-neutral-800 dark:text-neutral-100"
             />
           </div>
           <div>
-            <label className={`block ${text.secondary} text-sm font-medium mb-1`}>Límite de puntos</label>
+            <label className="block text-sm font-medium mb-1 text-neutral-600 dark:text-neutral-300">Límite de puntos</label>
             <input
               type="number"
               value={pointLimit}
               onChange={(e) => onPointLimitChange(parseInt(e.target.value))}
-              className={`w-full px-3 py-2 border rounded-md ${bg.input} ${text.primary}`}
+              className="w-full px-3 py-2 border rounded-md bg-white dark:bg-dark-blue-600 text-neutral-800 dark:text-neutral-100"
               min="1"
               max="1000"
             />
@@ -187,7 +188,7 @@ const MapComponent = ({
           <div className="flex items-end">
             <button
               onClick={fetchHistoryData}
-              className="w-full px-4 py-2 bg-blue-600 dark:bg-blue-500 text-white rounded-md hover:bg-blue-700 dark:hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 transition-colors duration-200 ease-in-out flex items-center justify-center shadow-md"
+              className="w-full px-4 py-2 bg-primary-600 dark:bg-primary-500 text-white rounded-md hover:bg-primary-700 dark:hover:bg-primary-600 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-opacity-50 transition-colors duration-200 ease-in-out flex items-center justify-center shadow-md"
             >
               <MagnifyingGlassIcon className="w-5 h-5 mr-2" />
               <span className="font-medium">Buscar</span>
@@ -196,7 +197,7 @@ const MapComponent = ({
         </div>
         {error && (
           <motion.div
-            className={`${text.error} mb-4`}
+            className="text-red-600 dark:text-red-400 mb-4"
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
           >

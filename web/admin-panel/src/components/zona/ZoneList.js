@@ -1,9 +1,9 @@
 import React from 'react';
 import { useTheme } from '../../contexts/ThemeContext';
-import { PlusIcon, PencilIcon, TrashIcon, UsersIcon, MapPinIcon, PencilSquareIcon } from '@heroicons/react/24/solid';
+import { PlusIcon, TrashIcon, UsersIcon, MapPinIcon, PencilSquareIcon } from '@heroicons/react/24/solid';
 
-const ZoneList = ({ zones, selectedZone, onSelectZone, onDeleteZone, onAddZone, onEditZone, onEditMap }) => {
-  const { text, bg } = useTheme();
+const ZoneList = ({ zones, selectedZone, onSelectZone, onDeleteZone, onAddZone, onEditZone }) => {
+  const { isDarkMode, text, bg } = useTheme();
 
   return (
     <div>
@@ -11,7 +11,7 @@ const ZoneList = ({ zones, selectedZone, onSelectZone, onDeleteZone, onAddZone, 
         <h2 className={`text-xl font-semibold ${text.primary}`}>Zonas</h2>
         <button
           onClick={onAddZone}
-          className={`${bg.primary} text-white p-2 rounded-md flex items-center`}
+          className={`${bg.primary} text-white p-2 rounded-md flex items-center hover:bg-opacity-90 transition-colors duration-200`}
         >
           <PlusIcon className="w-5 h-5 mr-1" />
           Añadir
@@ -21,7 +21,7 @@ const ZoneList = ({ zones, selectedZone, onSelectZone, onDeleteZone, onAddZone, 
         {zones.map((zone) => (
           <li 
             key={zone.id} 
-            className={`${bg.secondary} p-4 rounded-lg flex flex-col cursor-pointer ${selectedZone && selectedZone.id === zone.id ? 'border-2 border-primary-500' : ''}`}
+            className={`${isDarkMode ? 'bg-gray-700 hover:bg-gray-600' : 'bg-white hover:bg-gray-100'} p-4 rounded-lg flex flex-col cursor-pointer transition-colors duration-200 ${selectedZone && selectedZone.id === zone.id ? 'border-2 border-primary-500' : ''}`}
             onClick={() => onSelectZone(zone)}
           >
             <div className="flex justify-between items-center">
@@ -30,29 +30,19 @@ const ZoneList = ({ zones, selectedZone, onSelectZone, onDeleteZone, onAddZone, 
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
-                    onEditMap(zone);
+                    onEditZone(zone);
                   }}
-                  className={`${bg.primary} text-white p-2 rounded-md`}
-                  title="Editar mapa"
+                  className={`${bg.primary} text-white p-2 rounded-md hover:bg-opacity-90 transition-colors duration-200`}
+                  title="Editar zona"
                 >
                   <PencilSquareIcon className="w-5 h-5" />
                 </button>
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
-                    onEditZone(zone);
-                  }}
-                  className={`${bg.primary} text-white p-2 rounded-md`}
-                  title="Editar información"
-                >
-                  <PencilIcon className="w-5 h-5" />
-                </button>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
                     onDeleteZone(zone.id);
                   }}
-                  className="bg-red-500 text-white p-2 rounded-md"
+                  className="bg-red-500 text-white p-2 rounded-md hover:bg-opacity-90 transition-colors duration-200"
                   title="Eliminar zona"
                 >
                   <TrashIcon className="w-5 h-5" />
