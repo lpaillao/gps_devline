@@ -10,57 +10,103 @@ const EmpresaManagement = () => {
   const [empresas, setEmpresas] = useState([]);
   const [selectedEmpresa, setSelectedEmpresa] = useState(null);
   const [isFormVisible, setIsFormVisible] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
   const { text, bg } = useTheme();
 
   useEffect(() => {
     fetchEmpresas();
   }, []);
 
+  const handleError = (error, action) => {
+    console.error(`Error ${action}:`, error);
+    const errorMessage = error.response?.data?.message || `Error ${action}. Please try again.`;
+    setError(errorMessage);
+    setTimeout(() => setError(null), 5000);
+  };
+
   const fetchEmpresas = async () => {
+    setLoading(true);
     try {
-      const response = await axios.get(`${API_BASE_URL}?action=getAllEmpresas`);
+      const response = await axios.get(`${API_BASE_URL}/empresas`);
       if (response.data.success) {
         setEmpresas(response.data.empresas);
+      } else {
+        throw new Error(response.data.message);
       }
     } catch (error) {
-      console.error('Error fetching empresas:', error);
+      handleError(error, 'fetching empresas');
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleAddEmpresa = async (newEmpresa) => {
+    setLoading(true);
     try {
-      const response = await axios.post(`${API_BASE_URL}?action=createEmpresa`, newEmpresa);
+      const response = await axios.post(`${API_BASE_URL}/empresas`, newEmpresa);
       if (response.data.success) {
-        fetchEmpresas();
+        await fetchEmpresas();
         setIsFormVisible(false);
+      } else {
+        throw new Error(response.data.message);
       }
     } catch (error) {
-      console.error('Error adding empresa:', error);
+      handleError(error, 'adding empresa');
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleUpdateEmpresa = async (updatedEmpresa) => {
+    setLoading(true);
     try {
-      const response = await axios.post(`${API_BASE_URL}?action=updateEmpresa`, updatedEmpresa);
+      const response = await axios.put(
+        `${API_BASE_URL}/empresas/${updatedEmpresa.id}`, 
+        updatedEmpresa
+      );
       if (response.data.success) {
-        fetchEmpresas();
+        await fetchEmpresas();
         setSelectedEmpresa(null);
         setIsFormVisible(false);
+      } else {
+        throw new Error(response.data.message);
       }
     } catch (error) {
-      console.error('Error updating empresa:', error);
+      handleError(error, 'updating empresa');
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleDeleteEmpresa = async (empresaId) => {
+    if (!window.confirm('¿Está seguro de que desea eliminar esta empresa?')) {
+      return;
+    }
+
+    setLoading(true);
     try {
-      const response = await axios.delete(`${API_BASE_URL}?action=deleteEmpresa&id=${empresaId}`);
+      const response = await axios.delete(`${API_BASE_URL}/empresas/${empresaId}`);
       if (response.data.success) {
-        fetchEmpresas();
+        await fetchEmpresas();
+        if (selectedEmpresa?.id === empresaId) {
+          setSelectedEmpresa(null);
+          setIsFormVisible(false);
+        }
+      } else {
+        throw new Error(response.data.message);
       }
     } catch (error) {
-      console.error('Error deleting empresa:', error);
+      handleError(error, 'deleting empresa');
+    } finally {
+      setLoading(false);
     }
+  };
+
+  const handleAddClick = () => {
+    setSelectedEmpresa(null);
+    setIsFormVisible(true);
+    setError(null);
   };
 
   return (
@@ -71,19 +117,40 @@ const EmpresaManagement = () => {
           Empresa Management
         </h1>
         <button
-          onClick={() => setIsFormVisible(true)}
-          className={`${bg.primary} text-white px-4 py-2 rounded-lg flex items-center`}
+          onClick={handleAddClick}
+          className={`${bg.primary} text-white px-4 py-2 rounded-lg flex items-center 
+            hover:opacity-90 transition-opacity disabled:opacity-50`}
+          disabled={loading}
         >
           <PlusIcon className="w-5 h-5 mr-2" />
           Add Empresa
         </button>
       </div>
+
+      {error && (
+        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative">
+          <span className="block sm:inline">{error}</span>
+        </div>
+      )}
+
+      {loading && !isFormVisible && (
+        <div className="flex justify-center py-4">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-500"></div>
+        </div>
+      )}
+
       <div className="flex flex-col lg:flex-row space-y-6 lg:space-y-0 lg:space-x-6">
         <EmpresaList
           empresas={empresas}
-          onSelectEmpresa={setSelectedEmpresa}
+          onSelectEmpresa={(empresa) => {
+            setSelectedEmpresa(empresa);
+            setIsFormVisible(true);
+            setError(null);
+          }}
           onDeleteEmpresa={handleDeleteEmpresa}
+          loading={loading}
         />
+        
         {(isFormVisible || selectedEmpresa) && (
           <EmpresaForm
             empresa={selectedEmpresa}
@@ -91,7 +158,9 @@ const EmpresaManagement = () => {
             onCancel={() => {
               setSelectedEmpresa(null);
               setIsFormVisible(false);
+              setError(null);
             }}
+            loading={loading}
           />
         )}
       </div>

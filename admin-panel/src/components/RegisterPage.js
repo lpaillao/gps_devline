@@ -6,6 +6,8 @@ const RegisterPage = () => {
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [nombre, setNombre] = useState('');
+  const [apellido, setApellido] = useState('');
   const [error, setError] = useState('');
   const navigate = useNavigate();
 
@@ -15,8 +17,8 @@ const RegisterPage = () => {
 
     try {
       const response = await axios.post(
-        'http://localhost/devline_app/gps_devline/backend/index.php?action=register',
-        { username, email, password },
+        'http://localhost:5000/api/register',
+        { username, email, password, nombre, apellido },
         {
           headers: {
             'Content-Type': 'application/json',
@@ -32,7 +34,13 @@ const RegisterPage = () => {
       }
     } catch (err) {
       console.error('Registration error:', err);
-      setError(err.response?.data?.message || 'An error occurred. Please try again.');
+      if (err.response) {
+        setError(err.response.data.message || `Error: ${err.response.status}`);
+      } else if (err.request) {
+        setError('No response from server. Please try again.');
+      } else {
+        setError('An error occurred. Please try again.');
+      }
     }
   };
 
@@ -51,6 +59,26 @@ const RegisterPage = () => {
               onChange={(e) => setUsername(e.target.value)}
               className="w-full px-3 py-2 border rounded"
               required
+            />
+          </div>
+          <div className="mb-4">
+            <label htmlFor="nombre" className="block mb-2">Nombre</label>
+            <input
+              type="text"
+              id="nombre"
+              value={nombre}
+              onChange={(e) => setNombre(e.target.value)}
+              className="w-full px-3 py-2 border rounded"
+            />
+          </div>
+          <div className="mb-4">
+            <label htmlFor="apellido" className="block mb-2">Apellido</label>
+            <input
+              type="text"
+              id="apellido"
+              value={apellido}
+              onChange={(e) => setApellido(e.target.value)}
+              className="w-full px-3 py-2 border rounded"
             />
           </div>
           <div className="mb-4">

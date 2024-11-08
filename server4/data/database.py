@@ -1,6 +1,6 @@
 import sqlite3
 import logging
-from config import DATABASE_NAME
+from config import SQLITE_DATABASE_NAME
 import threading
 import json
 from datetime import datetime, timedelta
@@ -15,7 +15,7 @@ class Database:
         if not hasattr(cls._local, "connection"):
             with cls._lock:
                 if not hasattr(cls._local, "connection"):
-                    cls._local.connection = sqlite3.connect(DATABASE_NAME, check_same_thread=False)
+                    cls._local.connection = sqlite3.connect(SQLITE_DATABASE_NAME, check_same_thread=False)
                     cls._local.connection.row_factory = sqlite3.Row
                     cls.create_tables(cls._local.connection)
         return cls._local.connection

@@ -7,7 +7,7 @@ import DeviceList from './DeviceList';
 import DeviceDetails from './DeviceDetails';
 import MapComponent from './MapComponent';
 import { API_BASE_URL, GPS_SERVER_URL } from '../../config';
-import { TruckIcon, MapIcon, ChartBarIcon } from '@heroicons/react/24/solid';
+import { TruckIcon, MapIcon, ChartBarIcon, ExclamationCircleIcon } from '@heroicons/react/24/solid';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const VehicleManagement = () => {
@@ -16,6 +16,7 @@ const VehicleManagement = () => {
   const [selectedDevice, setSelectedDevice] = useState(null);
   const [routePoints, setRoutePoints] = useState([]);
   const [error, setError] = useState(null);
+  const [loading, setLoading] = useState(false);
   const [liveTracking, setLiveTracking] = useState(false);
   const [socketConnected, setSocketConnected] = useState(false);
   const [activeTab, setActiveTab] = useState('map');
@@ -26,6 +27,13 @@ const VehicleManagement = () => {
   const { user } = useAuth();
   const { isDarkMode } = useTheme();
 
+  const handleError = (error, action) => {
+    console.error(`Error ${action}:`, error);
+    const errorMessage = error.response?.data?.message || `Error ${action}. Please try again.`;
+    setError(errorMessage);
+    setTimeout(() => setError(null), 5000);
+  };
+
   const handleGPSUpdate = useCallback((data) => {
     console.log('Received GPS update:', data);
     if (data.imei === selectedDevice?.imei) {
@@ -33,6 +41,7 @@ const VehicleManagement = () => {
       setRoutePoints(prevPoints => [...prevPoints, [Latitude, Longitude]]);
     }
   }, [selectedDevice]);
+
 
   const connectSocket = useCallback(() => {
     console.log('Attempting to connect to socket...');
@@ -90,19 +99,23 @@ const VehicleManagement = () => {
   const fetchDeviceRoute = useCallback(async (imei) => {
     try {
       setError(null);
+      setLoading(true);
       const endDate = new Date().toISOString().split('T')[0];
       const startDate = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-      const response = await axios.get(`${GPS_SERVER_URL}/gps/${imei}/history?start_date=${startDate}&end_date=${endDate}&limit=${pointLimit}`);
-      if (response.data && response.data.length > 0) {
-        setRoutePoints(response.data.map(point => [point.latitude, point.longitude]));
+      const response = await axios.get(
+        `${API_BASE_URL}/ubicaciones/dispositivo/${imei}?start_date=${startDate}&end_date=${endDate}&limit=${pointLimit}`
+      );
+      if (response.data.success && response.data.ubicaciones.length > 0) {
+        setRoutePoints(response.data.ubicaciones.map(point => [point.latitud, point.longitud]));
       } else {
         setRoutePoints([]);
         setError('No route data available for this device.');
       }
     } catch (error) {
-      console.error('Error fetching device route:', error);
+      handleError(error, 'fetching device route');
       setRoutePoints([]);
-      setError('Error fetching device route. The device might be offline or not sending data.');
+    } finally {
+      setLoading(false);
     }
   }, [pointLimit]);
 
@@ -118,7 +131,7 @@ const VehicleManagement = () => {
   const handleHistoryUpdate = useCallback((newHistoryData) => {
     setHistoryData(newHistoryData);
     if (Array.isArray(newHistoryData) && newHistoryData.length > 0) {
-      setRoutePoints(newHistoryData.map(point => [point.latitude, point.longitude]));
+      setRoutePoints(newHistoryData.map(point => [point.latitud, point.longitud]));
       setHistoryPoint(null);
     } else if (newHistoryData) {
       setHistoryPoint(newHistoryData);
@@ -145,20 +158,26 @@ const VehicleManagement = () => {
 
   const fetchDevices = useCallback(async () => {
     try {
-      const response = await axios.get(`${API_BASE_URL}?action=getAllDispositivosGPS`, { withCredentials: true });
+      setLoading(true);
+      const response = await axios.get(`${API_BASE_URL}/dispositivos`);
       if (response.data.success) {
         setDevices(response.data.dispositivos);
+      } else {
+        throw new Error(response.data.message || 'Failed to fetch devices');
       }
     } catch (error) {
-      console.error('Error fetching devices:', error);
-      setError('Error fetching devices. Please try again later.');
+      handleError(error, 'fetching devices');
+    } finally {
+      setLoading(false);
     }
   }, []);
 
   const fetchConnectedDevices = useCallback(async () => {
     try {
-      const response = await axios.get(`${GPS_SERVER_URL}/connected_devices`);
-      setConnectedDevices(response.data);
+      const response = await axios.get(`${API_BASE_URL}/gps/connected_devices`);
+      if (Array.isArray(response.data)) {
+        setConnectedDevices(response.data);
+      }
     } catch (error) {
       console.error('Error fetching connected devices:', error);
     }
@@ -169,8 +188,11 @@ const VehicleManagement = () => {
     fetchDevices();
     fetchConnectedDevices();
 
+    const refreshInterval = setInterval(fetchConnectedDevices, 30000); // Refresh every 30 seconds
+
     return () => {
       disconnectSocket();
+      clearInterval(refreshInterval);
     };
   }, [connectSocket, disconnectSocket, fetchDevices, fetchConnectedDevices]);
 
@@ -188,15 +210,25 @@ return (
           selectedDevice={selectedDevice}
         />
         <div className="w-full lg:w-3/4 space-y-6">
-          {error && (
-            <motion.div 
-              initial={{ opacity: 0, y: -20 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-100 p-4 rounded-md shadow-md"
-            >
-              {error}
-            </motion.div>
-          )}
+        {error && (
+        <motion.div 
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-100 p-4 rounded-md shadow-md flex items-center"
+        >
+          <ExclamationCircleIcon className="w-5 h-5 mr-2" />
+          {error}
+        </motion.div>
+      )}
+      {loading && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="flex justify-center py-4"
+        >
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-500"></div>
+        </motion.div>
+      )}
           {selectedDevice && (
             <>
               <div className="bg-white dark:bg-dark-blue-800 rounded-xl shadow-lg p-4 flex justify-between items-center">

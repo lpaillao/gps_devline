@@ -15,6 +15,9 @@ server/*$py.class
 
 # Archivos de entorno virtual
 server/venv/
+
+server4/venv/
+server4/gps_tracking.log
 server/env/
 server/ENV/
 server/.venv/

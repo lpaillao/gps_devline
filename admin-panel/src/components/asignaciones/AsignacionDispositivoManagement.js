@@ -10,57 +10,103 @@ const AsignacionDispositivoManagement = () => {
   const [asignaciones, setAsignaciones] = useState([]);
   const [selectedAsignacion, setSelectedAsignacion] = useState(null);
   const [isFormVisible, setIsFormVisible] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
   const { text, bg } = useTheme();
 
   useEffect(() => {
     fetchAsignaciones();
   }, []);
 
+  const handleError = (error, action) => {
+    console.error(`Error ${action}:`, error);
+    const errorMessage = error.response?.data?.message || `Error ${action}. Please try again.`;
+    setError(errorMessage);
+    setTimeout(() => setError(null), 5000);
+  };
+
   const fetchAsignaciones = async () => {
+    setLoading(true);
     try {
-      const response = await axios.get(`${API_BASE_URL}?action=getAllAsignaciones`);
+      const response = await axios.get(`${API_BASE_URL}/asignaciones`);
       if (response.data.success) {
         setAsignaciones(response.data.asignaciones);
+      } else {
+        throw new Error(response.data.message);
       }
     } catch (error) {
-      console.error('Error fetching asignaciones:', error);
+      handleError(error, 'fetching asignaciones');
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleAddAsignacion = async (newAsignacion) => {
+    setLoading(true);
     try {
-      const response = await axios.post(`${API_BASE_URL}?action=createAsignacion`, newAsignacion);
+      const response = await axios.post(`${API_BASE_URL}/asignaciones`, newAsignacion);
       if (response.data.success) {
-        fetchAsignaciones();
+        await fetchAsignaciones();
         setIsFormVisible(false);
+      } else {
+        throw new Error(response.data.message);
       }
     } catch (error) {
-      console.error('Error adding asignacion:', error);
+      handleError(error, 'adding asignacion');
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleUpdateAsignacion = async (updatedAsignacion) => {
+    setLoading(true);
     try {
-      const response = await axios.post(`${API_BASE_URL}?action=updateAsignacion`, updatedAsignacion);
+      const response = await axios.put(
+        `${API_BASE_URL}/asignaciones/${updatedAsignacion.id}`, 
+        updatedAsignacion
+      );
       if (response.data.success) {
-        fetchAsignaciones();
+        await fetchAsignaciones();
         setSelectedAsignacion(null);
         setIsFormVisible(false);
+      } else {
+        throw new Error(response.data.message);
       }
     } catch (error) {
-      console.error('Error updating asignacion:', error);
+      handleError(error, 'updating asignacion');
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleDeleteAsignacion = async (asignacionId) => {
+    if (!window.confirm('¿Está seguro de que desea eliminar esta asignación?')) {
+      return;
+    }
+
+    setLoading(true);
     try {
-      const response = await axios.delete(`${API_BASE_URL}?action=deleteAsignacion&id=${asignacionId}`);
+      const response = await axios.delete(`${API_BASE_URL}/asignaciones/${asignacionId}`);
       if (response.data.success) {
-        fetchAsignaciones();
+        await fetchAsignaciones();
+        if (selectedAsignacion?.id === asignacionId) {
+          setSelectedAsignacion(null);
+          setIsFormVisible(false);
+        }
+      } else {
+        throw new Error(response.data.message);
       }
     } catch (error) {
-      console.error('Error deleting asignacion:', error);
+      handleError(error, 'deleting asignacion');
+    } finally {
+      setLoading(false);
     }
+  };
+
+  const handleAddClick = () => {
+    setSelectedAsignacion(null);
+    setIsFormVisible(true);
+    setError(null);
   };
 
   return (
@@ -71,19 +117,40 @@ const AsignacionDispositivoManagement = () => {
           Asignación de Dispositivos
         </h1>
         <button
-          onClick={() => setIsFormVisible(true)}
-          className={`${bg.primary} text-white px-4 py-2 rounded-lg flex items-center`}
+          onClick={handleAddClick}
+          className={`${bg.primary} text-white px-4 py-2 rounded-lg flex items-center
+            hover:opacity-90 transition-opacity disabled:opacity-50`}
+          disabled={loading}
         >
           <PlusIcon className="w-5 h-5 mr-2" />
           Add Asignación
         </button>
       </div>
+
+      {error && (
+        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative">
+          <span className="block sm:inline">{error}</span>
+        </div>
+      )}
+
+      {loading && !isFormVisible && (
+        <div className="flex justify-center py-4">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-500"></div>
+        </div>
+      )}
+
       <div className="flex flex-col lg:flex-row space-y-6 lg:space-y-0 lg:space-x-6">
         <AsignacionDispositivoList
           asignaciones={asignaciones}
-          onSelectAsignacion={setSelectedAsignacion}
+          onSelectAsignacion={(asignacion) => {
+            setSelectedAsignacion(asignacion);
+            setIsFormVisible(true);
+            setError(null);
+          }}
           onDeleteAsignacion={handleDeleteAsignacion}
+          loading={loading}
         />
+        
         {(isFormVisible || selectedAsignacion) && (
           <AsignacionDispositivoForm
             asignacion={selectedAsignacion}
@@ -91,7 +158,9 @@ const AsignacionDispositivoManagement = () => {
             onCancel={() => {
               setSelectedAsignacion(null);
               setIsFormVisible(false);
+              setError(null);
             }}
+            loading={loading}
           />
         )}
       </div>

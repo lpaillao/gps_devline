@@ -49,8 +49,11 @@ const DynamicRoutes = () => {
     const fetchMenuRoutes = async () => {
       if (user && user.role_id) {
         try {
-          const response = await axios.get(`${API_BASE_URL}?action=getMenusByRoleId&roleId=${user.role_id}`, {
-            withCredentials: true
+          const response = await axios.get(`${API_BASE_URL}/menus/role/${user.role_id}`, {
+            withCredentials: true,
+            headers: {
+              'Content-Type': 'application/json',
+            }
           });
           if (response.data.success) {
             setMenuRoutes(response.data.menus);
