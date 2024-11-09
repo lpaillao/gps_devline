@@ -3,7 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import axios from 'axios';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
-import { API_BASE_URL } from './config';
+import config from './config/config';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import Layout from './components/layout/Layout';
@@ -49,7 +49,7 @@ const DynamicRoutes = () => {
     const fetchMenuRoutes = async () => {
       if (user && user.role_id) {
         try {
-          const response = await axios.get(`${API_BASE_URL}/menus/role/${user.role_id}`, {
+          const response = await axios.get(`${config.api.baseURL}/api/menus/role/${user.role_id}`, {
             withCredentials: true,
             headers: {
               'Content-Type': 'application/json',

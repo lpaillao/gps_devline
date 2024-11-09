@@ -3,8 +3,7 @@ import { Link, useLocation } from 'react-router-dom';
 import axios from 'axios';
 import { Home, Users, Truck, Settings, ChevronLeft, ChevronRight, Cog, LayoutGrid, Shield, MapPin, AlertCircle } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
-import { API_BASE_URL } from '../../config';
-
+import config from '../../config/config';
 const Sidebar = ({ minimized, toggleMinimize }) => {
   const [menuItems, setMenuItems] = useState([]);
   const [error, setError] = useState(null);
@@ -15,7 +14,7 @@ const Sidebar = ({ minimized, toggleMinimize }) => {
     const fetchMenuItems = async () => {
       if (user && user.role_id) {
         try {
-          const response = await axios.get(`${API_BASE_URL}/menus/role/${user.role_id}`, {
+          const response = await axios.get(`${config.api.baseURL}/api/menus/role/${user.role_id}`, {
             withCredentials: true,
             headers: {
               'Content-Type': 'application/json'

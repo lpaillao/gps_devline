@@ -1,18 +1,15 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
-import { useTheme } from '../../contexts/ThemeContext';
 import { TruckIcon, BoltIcon, MapPinIcon, ArrowTrendingUpIcon, ClockIcon } from '@heroicons/react/24/solid';
-import { GPS_SERVER_URL } from '../../config';
 import { motion } from 'framer-motion';
-
+import config from '../../config/config';
 const DeviceDetails = ({ device }) => {
   const [latestData, setLatestData] = useState(null);
   const [error, setError] = useState(null);
-  const { isDarkMode } = useTheme();
 
   const fetchLatestData = useCallback(async () => {
     try {
-      const response = await axios.get(`${GPS_SERVER_URL}/gps/${device.imei}/latest`);
+      const response = await axios.get(`${config.api.baseURL}/api/gps/${device.imei}/latest`);
       if (response.data && response.data.imei) {
         setLatestData(response.data);
         setError(null);

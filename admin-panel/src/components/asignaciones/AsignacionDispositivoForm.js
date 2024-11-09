@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useTheme } from '../../contexts/ThemeContext';
 import axios from 'axios';
-import { API_BASE_URL } from '../../config';
+import config from '../../config/config';
 
 const AsignacionDispositivoForm = ({ asignacion, onSubmit, onCancel, loading }) => {
   const [formData, setFormData] = useState({
@@ -57,7 +57,7 @@ const AsignacionDispositivoForm = ({ asignacion, onSubmit, onCancel, loading }) 
 
   const fetchDispositivos = async () => {
     try {
-      const response = await axios.get(`${API_BASE_URL}/dispositivos`);
+      const response = await axios.get(`${config.api.baseURL}/api/dispositivos`);
       if (response.data.success) {
         setDispositivos(response.data.dispositivos);
       } else {
@@ -70,7 +70,7 @@ const AsignacionDispositivoForm = ({ asignacion, onSubmit, onCancel, loading }) 
 
   const fetchUsuarios = async () => {
     try {
-      const response = await axios.get(`${API_BASE_URL}/users`);
+      const response = await axios.get(`${config.api.baseURL}/api/users`);
       // Manejamos tanto el formato {success: true, users: [...]} como el array directo
       const users = Array.isArray(response.data) 
         ? response.data 
@@ -91,7 +91,7 @@ const AsignacionDispositivoForm = ({ asignacion, onSubmit, onCancel, loading }) 
 
   const fetchEmpresas = async () => {
     try {
-      const response = await axios.get(`${API_BASE_URL}/empresas`);
+      const response = await axios.get(`${config.api.baseURL}/api/empresas`);
       if (response.data.success && response.data.empresas) {
         setEmpresas(response.data.empresas);
       } else {

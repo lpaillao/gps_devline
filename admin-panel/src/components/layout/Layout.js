@@ -2,12 +2,10 @@ import React, { useState } from 'react';
 import Header from './Header';
 import Sidebar from './Sidebar';
 import Footer from './Footer';
-import { useTheme } from '../../contexts/ThemeContext';
 
 const Layout = ({ children }) => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [sidebarMinimized, setSidebarMinimized] = useState(false);
-  const { isDarkMode } = useTheme();
 
   const toggleSidebar = () => setSidebarOpen(!sidebarOpen);
   const toggleMinimize = () => setSidebarMinimized(!sidebarMinimized);

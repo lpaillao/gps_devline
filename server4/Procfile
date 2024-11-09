@@ -1,0 +1,2 @@
+web: gunicorn --worker-class eventlet -w 1 'api.api:app'
+worker: python main.py

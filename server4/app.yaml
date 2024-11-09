@@ -1,0 +1,32 @@
+name: gps-tracking-system
+services:
+  - name: web
+    github:
+      branch: main
+      deploy_on_push: true
+      repo: tu-usuario/tu-repo
+    envs:
+      - key: FLASK_ENV
+        value: production
+      - key: DEBUG
+        value: false
+      - key: APP_NAME
+        value: GPS Tracking System
+      - key: MYSQL_HOST
+        value: ${db.HOSTNAME}
+      - key: MYSQL_PORT
+        value: ${db.PORT}
+      - key: MYSQL_USER
+        value: ${db.USERNAME}
+      - key: MYSQL_PASSWORD
+        value: ${db.PASSWORD}
+      - key: MYSQL_DATABASE
+        value: ${db.DATABASE}
+      - key: SECRET_KEY
+        type: secret
+      - key: JWT_SECRET_KEY
+        type: secret
+    instance_size_slug: basic-xxs
+    instance_count: 1
+    health_check:
+      http_path: /health

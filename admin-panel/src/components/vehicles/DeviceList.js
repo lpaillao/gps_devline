@@ -1,10 +1,8 @@
 import React from 'react';
-import { useTheme } from '../../contexts/ThemeContext';
 import { TruckIcon, WifiIcon, BoltIcon, XCircleIcon } from '@heroicons/react/24/solid';
 import { motion } from 'framer-motion';
 
 const DeviceList = ({ devices, connectedDevices, onSelectDevice, selectedDevice }) => {
-  const { isDarkMode } = useTheme();
 
   return (
     <div className="w-full lg:w-1/4 bg-white dark:bg-dark-blue-800 rounded-xl shadow-lg p-6 overflow-y-auto max-h-[calc(100vh-2rem)]">

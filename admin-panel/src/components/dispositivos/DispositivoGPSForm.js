@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useTheme } from '../../contexts/ThemeContext';
 import axios from 'axios';
-import { API_BASE_URL } from '../../config';
-
+import config from '../../config/config';
 const DispositivoGPSForm = ({ dispositivo, onSubmit, onCancel }) => {
   const [formData, setFormData] = useState({
     imei: '',
@@ -41,7 +40,7 @@ const DispositivoGPSForm = ({ dispositivo, onSubmit, onCancel }) => {
 
   const fetchTiposGPS = async () => {
     try {
-      const response = await axios.get(`${API_BASE_URL}/tipos-gps`);
+      const response = await axios.get(`${config.api.baseURL}/api/tipos-gps`);
       if (response.data.success) {
         setTiposGPS(response.data.tipos);
       } else {
@@ -55,7 +54,7 @@ const DispositivoGPSForm = ({ dispositivo, onSubmit, onCancel }) => {
 
   const fetchConnectedIMEIs = async () => {
     try {
-      const response = await axios.get(`${API_BASE_URL}/gps/connected_devices`);
+      const response = await axios.get(`${config.api.baseURL}/api/gps/connected_devices`);
       if (Array.isArray(response.data)) {
         setConnectedIMEIs(response.data);
         setFilteredIMEIs(response.data);

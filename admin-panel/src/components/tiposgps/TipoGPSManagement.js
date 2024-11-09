@@ -4,8 +4,7 @@ import { useTheme } from '../../contexts/ThemeContext';
 import TipoGPSList from './TipoGPSList';
 import TipoGPSForm from './TipoGPSForm';
 import { TagIcon, PlusIcon } from '@heroicons/react/24/solid';
-import { API_BASE_URL } from '../../config';
-
+import config from '../../config/config';
 const TipoGPSManagement = () => {
   const [tiposGPS, setTiposGPS] = useState([]);
   const [selectedTipoGPS, setSelectedTipoGPS] = useState(null);
@@ -29,7 +28,7 @@ const TipoGPSManagement = () => {
   const fetchTiposGPS = async () => {
     setLoading(true);
     try {
-      const response = await axios.get(`${API_BASE_URL}/tipos-gps`);
+      const response = await axios.get(`${config.api.baseURL}/api/tipos-gps`);
       if (response.data.success) {
         setTiposGPS(response.data.tipos);
       } else {
@@ -45,7 +44,7 @@ const TipoGPSManagement = () => {
   const handleAddTipoGPS = async (newTipoGPS) => {
     setLoading(true);
     try {
-      const response = await axios.post(`${API_BASE_URL}/tipos-gps`, newTipoGPS);
+      const response = await axios.post(`${config.api.baseURL}/api/tipos-gps`, newTipoGPS);
       if (response.data.success) {
         await fetchTiposGPS();
         setIsFormVisible(false);
@@ -63,7 +62,7 @@ const TipoGPSManagement = () => {
     setLoading(true);
     try {
       const response = await axios.put(
-        `${API_BASE_URL}/tipos-gps/${updatedTipoGPS.id}`, 
+        `${config.api.baseURL}/api/tipos-gps/${updatedTipoGPS.id}`, 
         updatedTipoGPS
       );
       if (response.data.success) {
@@ -87,7 +86,7 @@ const TipoGPSManagement = () => {
 
     setLoading(true);
     try {
-      const response = await axios.delete(`${API_BASE_URL}/tipos-gps/${tipoGPSId}`);
+      const response = await axios.delete(`${config.api.baseURL}/api/tipos-gps/${tipoGPSId}`);
       if (response.data.success) {
         await fetchTiposGPS();
         if (selectedTipoGPS?.id === tipoGPSId) {

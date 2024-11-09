@@ -4,7 +4,6 @@ import { motion } from 'framer-motion';
 
 const HistorySlider = ({ historyData, onSlideChange }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
-  const { isDarkMode } = useTheme();
 
   useEffect(() => {
     onSlideChange(historyData[currentIndex]);

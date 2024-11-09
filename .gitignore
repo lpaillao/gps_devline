@@ -71,3 +71,23 @@ server/.ipynb_checkpoints/
 server/*.DS_Store
 server/*.env
 
+# Environments
+server/.env
+server/*.env
+
+# Python
+server/__pycache__/
+server/*.py[cod]
+server/*$py.class
+
+# Logs
+server/logs/*
+server/!logs/.gitkeep
+server/*.log
+
+# Database
+server/*.db
+
+# IDE
+server/.vscode/
+server/.idea/

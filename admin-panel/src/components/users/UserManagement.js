@@ -4,8 +4,7 @@ import { useTheme } from '../../contexts/ThemeContext';
 import UserList from './UserList';
 import UserForm from './UserForm';
 import { UserIcon, PlusIcon, ExclamationCircleIcon } from '@heroicons/react/24/solid';
-import { API_BASE_URL } from '../../config';
-
+import config from '../../config/config';
 const UserManagement = () => {
   const [users, setUsers] = useState([]);
   const [selectedUser, setSelectedUser] = useState(null);
@@ -28,7 +27,7 @@ const UserManagement = () => {
   const fetchUsers = async () => {
     setLoading(true);
     try {
-      const response = await axios.get(`${API_BASE_URL}/users`);
+      const response = await axios.get(`${config.api.baseURL}/api/users`);
       // La API ahora devuelve directamente el array de usuarios
       const userData = Array.isArray(response.data) ? response.data : response.data.users;
       setUsers(userData || []);
@@ -42,7 +41,7 @@ const UserManagement = () => {
   const handleAddUser = async (newUser) => {
     setLoading(true);
     try {
-      const response = await axios.post(`${API_BASE_URL}/users`, newUser);
+      const response = await axios.post(`${config.api.baseURL}/api/users`, newUser);
       if (response.data.success) {
         await fetchUsers();
         setIsFormVisible(false);
@@ -60,7 +59,7 @@ const UserManagement = () => {
     setLoading(true);
     try {
       const response = await axios.put(
-        `${API_BASE_URL}/users/${updatedUser.id}`, 
+        `${config.api.baseURL}/api/users/${updatedUser.id}`, 
         updatedUser
       );
       if (response.data.success) {
@@ -84,7 +83,7 @@ const UserManagement = () => {
 
     setLoading(true);
     try {
-      const response = await axios.delete(`${API_BASE_URL}/users/${userId}`);
+      const response = await axios.delete(`${config.api.baseURL}/api/users/${userId}`);
       if (response.data.success) {
         await fetchUsers();
         if (selectedUser?.id === userId) {

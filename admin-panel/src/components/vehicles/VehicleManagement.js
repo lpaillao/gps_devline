@@ -1,15 +1,12 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import axios from 'axios';
 import io from 'socket.io-client';
-import { useAuth } from '../../contexts/AuthContext';
-import { useTheme } from '../../contexts/ThemeContext';
 import DeviceList from './DeviceList';
 import DeviceDetails from './DeviceDetails';
 import MapComponent from './MapComponent';
-import { API_BASE_URL, GPS_SERVER_URL } from '../../config';
 import { TruckIcon, MapIcon, ChartBarIcon, ExclamationCircleIcon } from '@heroicons/react/24/solid';
 import { motion, AnimatePresence } from 'framer-motion';
-
+import config from '../../config/config';
 const VehicleManagement = () => {
   const [devices, setDevices] = useState([]);
   const [connectedDevices, setConnectedDevices] = useState([]);
@@ -24,8 +21,6 @@ const VehicleManagement = () => {
   const [historyData, setHistoryData] = useState([]);
   const [pointLimit, setPointLimit] = useState(100);
   const socketRef = useRef(null);
-  const { user } = useAuth();
-  const { isDarkMode } = useTheme();
 
   const handleError = (error, action) => {
     console.error(`Error ${action}:`, error);
@@ -45,7 +40,7 @@ const VehicleManagement = () => {
 
   const connectSocket = useCallback(() => {
     console.log('Attempting to connect to socket...');
-    socketRef.current = io(GPS_SERVER_URL, {
+    socketRef.current = io(config.api.baseURL, {
       transports: ['websocket'],
       upgrade: false,
     });
@@ -103,7 +98,7 @@ const VehicleManagement = () => {
       const endDate = new Date().toISOString().split('T')[0];
       const startDate = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
       const response = await axios.get(
-        `${API_BASE_URL}/ubicaciones/dispositivo/${imei}?start_date=${startDate}&end_date=${endDate}&limit=${pointLimit}`
+        `${config.api.baseURL}/ubicaciones/dispositivo/${imei}?start_date=${startDate}&end_date=${endDate}&limit=${pointLimit}`
       );
       if (response.data.success && response.data.ubicaciones.length > 0) {
         setRoutePoints(response.data.ubicaciones.map(point => [point.latitud, point.longitud]));
@@ -159,7 +154,7 @@ const VehicleManagement = () => {
   const fetchDevices = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await axios.get(`${API_BASE_URL}/dispositivos`);
+      const response = await axios.get(`${config.api.baseURL}/api/dispositivos`);
       if (response.data.success) {
         setDevices(response.data.dispositivos);
       } else {
@@ -174,7 +169,7 @@ const VehicleManagement = () => {
 
   const fetchConnectedDevices = useCallback(async () => {
     try {
-      const response = await axios.get(`${API_BASE_URL}/gps/connected_devices`);
+      const response = await axios.get(`${config.api.baseURL}/api/gps/connected_devices`);
       if (Array.isArray(response.data)) {
         setConnectedDevices(response.data);
       }

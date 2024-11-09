@@ -1,19 +1,14 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
-
-// Crear una instancia de axios con configuración personalizada
+import config from '../config/config';
+// Modificar la configuración de axios para usar la variable de entorno
 const api = axios.create({
-  baseURL: 'http://localhost:5000/api',
-  withCredentials: true,
-  headers: {
-    'Content-Type': 'application/json',
-    'Accept': 'application/json'
-  },
-  // Timeout de 10 segundos
-  timeout: 10000
+  ...config.api,
+  baseURL: config.api.baseURL + '/api' // Agregamos /api al baseURL
 });
 
+console.log(config.api.baseURL);
 // Interceptor para logging de requests
 api.interceptors.request.use(request => {
   console.log('Starting Request:', {
@@ -25,7 +20,6 @@ api.interceptors.request.use(request => {
   return request;
 });
 
-// Interceptor para logging de responses
 api.interceptors.response.use(
   response => {
     console.log('Response:', {

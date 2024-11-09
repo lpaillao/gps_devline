@@ -1,5 +1,6 @@
 import logging
 from .database import Database
+from config.config import Config
 
 class DataManager:
     @staticmethod
@@ -10,6 +11,7 @@ class DataManager:
             logging.info(f"Saved {len(records)} records for IMEI {imei}")
         except Exception as e:
             logging.error(f"Failed to save data for IMEI {imei}: {e}")
+
 
     @staticmethod
     def get_data_by_imei(imei, limit=100):

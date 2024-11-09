@@ -1,11 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { API_BASE_URL } from '../../../config';
+import config from '../../../config/config';
 import { useTheme } from '../../../contexts/ThemeContext';
 import { 
   CheckIcon,
   ExclamationCircleIcon,
-  UserIcon,
   ListBulletIcon,
   MagnifyingGlassIcon
 } from '@heroicons/react/24/solid';
@@ -45,7 +44,7 @@ const RoleMenuAssociation = () => {
 
   const fetchRoles = async () => {
     try {
-      const response = await axios.get(`${API_BASE_URL}/roles`);
+      const response = await axios.get(`${config.api.baseURL}/api/roles`);
       if (response.data.success) {
         setRoles(response.data.roles);
       }
@@ -56,7 +55,7 @@ const RoleMenuAssociation = () => {
 
   const fetchMenus = async () => {
     try {
-      const response = await axios.get(`${API_BASE_URL}/menus`);
+      const response = await axios.get(`${config.api.baseURL}/api/menus`);
       if (response.data.success) {
         setMenus(response.data.menus);
       }
@@ -72,7 +71,7 @@ const RoleMenuAssociation = () => {
     
     try {
       if (roleId) {
-        const response = await axios.get(`${API_BASE_URL}/roles/${roleId}/menus`);
+        const response = await axios.get(`${config.api.baseURL}/api/roles/${roleId}/menus`);
         if (response.data.success) {
           // Actualizado para usar menu_ids en lugar de menus
           setSelectedMenus(response.data.menu_ids || []);
@@ -110,7 +109,7 @@ const RoleMenuAssociation = () => {
 
     setLoading(true);
     try {
-      const response = await axios.post(`${API_BASE_URL}/roles/${selectedRole}/menus`, {
+      const response = await axios.post(`${config.api.baseURL}/api/roles/${selectedRole}/menus`, {
         menu_ids: selectedMenus  // Ya está en el formato correcto
       });
       

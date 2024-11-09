@@ -4,7 +4,7 @@ import { useTheme } from '../../contexts/ThemeContext';
 import UserList from './UserList';
 import UserForm from './UserForm';
 import { UserIcon, PlusIcon } from '@heroicons/react/24/solid';
-import { API_BASE_URL } from '../../config';
+import config from '../../config/config';
 
 const UserManagement = () => {
   const [users, setUsers] = useState([]);
@@ -18,7 +18,7 @@ const UserManagement = () => {
 
   const fetchUsers = async () => {
     try {
-      const response = await axios.get(`${API_BASE_URL}?action=getAllUsers`);
+      const response = await axios.get(`${config.api.baseURL}/api?action=getAllUsers`);
       if (response.data.success) {
         setUsers(response.data.users);
       }
@@ -29,7 +29,7 @@ const UserManagement = () => {
 
   const handleAddUser = async (newUser) => {
     try {
-      const response = await axios.post(`${API_BASE_URL}?action=createUser`, newUser);
+      const response = await axios.post(`${config.api.baseURL}/api?action=createUser`, newUser);
       if (response.data.success) {
         fetchUsers();
         setIsFormVisible(false);
@@ -41,7 +41,7 @@ const UserManagement = () => {
 
   const handleUpdateUser = async (updatedUser) => {
     try {
-      const response = await axios.post(`${API_BASE_URL}?action=updateUser`, updatedUser);
+      const response = await axios.post(`${config.api.baseURL}/api?action=updateUser`, updatedUser);
       if (response.data.success) {
         fetchUsers();
         setSelectedUser(null);
@@ -54,7 +54,7 @@ const UserManagement = () => {
 
   const handleDeleteUser = async (userId) => {
     try {
-      const response = await axios.delete(`${API_BASE_URL}?action=deleteUser&id=${userId}`);
+      const response = await axios.delete(`${config.api.baseURL}/api?action=deleteUser&id=${userId}`);
       if (response.data.success) {
         fetchUsers();
       }

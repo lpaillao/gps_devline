@@ -1,6 +1,6 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import axios from 'axios';
-
+import config from '../config/config';
 const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
@@ -18,7 +18,7 @@ export const AuthProvider = ({ children }) => {
   const login = async (username, password) => {
     try {
       const response = await axios.post(
-        'http://localhost/devline_app/gps_devline/backend/public/index.php?action=login',
+        `${config.api.baseURL}/api/login`,
         { username, password },
         {
           headers: {

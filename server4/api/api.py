@@ -1,6 +1,12 @@
-import logging
+import os
 from flask import Flask, jsonify, request
 from flask_socketio import SocketIO, emit
+from flask_cors import CORS
+from threading import Event
+import json
+from datetime import datetime, timedelta
+import logging
+# Importar managers
 from data.data_manager import DataManager
 from data.mysql_user_manager import MySQLUserManager
 from data.mysql_menu_manager import MySQLMenuManager
@@ -10,24 +16,27 @@ from data.mysql_asignacion_dispositivo_manager import MySQLAsignacionDispositivo
 from data.mysql_ubicacion_manager import MySQLUbicacionManager
 from data.mysql_role_manager import MySQLRoleManager
 from data.mysql_empresa_manager import MySQLEmpresaManager
-
 from data.mysql_tipo_gps_manager import MySQLTipoGPSManager
-from config import API_HOST, API_PORT
-from datetime import datetime, timedelta
-from flask_cors import CORS
-import json
+
+# Importar configuración
+from config.config import Config
+
+# Configurar logging
+logging.basicConfig(
+    level=logging.DEBUG if Config.DEBUG else logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+
+# Inicializar Flask
 app = Flask(__name__)
-CORS(app, resources={
-    r"/api/*": {
-        "origins": ["http://localhost:3000"],
-        "allow_credentials": True,
-        "allow_headers": ["Content-Type", "Authorization"],
-        "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
-    }
-})
 
-socketio = SocketIO(app, cors_allowed_origins="http://localhost:3000", async_mode='eventlet')
+# Configurar CORS
+CORS(app, **Config.get_cors_config())
 
+# Configurar SocketIO
+socketio = SocketIO(app, **Config.get_socketio_config())
+_socket_instance = None
+# Inicializar managers
 user_manager = MySQLUserManager()
 menu_manager = MySQLMenuManager()
 role_menu_manager = MySQLRoleMenuManager()
@@ -38,110 +47,85 @@ empresa_manager = MySQLEmpresaManager()
 ubicacion_manager = MySQLUbicacionManager()
 role_manager = MySQLRoleManager()
 
-@app.after_request
-def after_request(response):
-    response.headers.add('Access-Control-Allow-Origin', 'http://localhost:3000')
-    response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
-    response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
-    response.headers.add('Access-Control-Allow-Credentials', 'true')
-    return response
+# Middleware para logging
+@app.before_request
+def log_request_info():
+    if request.path.startswith('/api'):
+        logging.info(f'Headers: {dict(request.headers)}')
+        logging.info(f'Body: {request.get_data()}')
 
-@app.route('/api/login', methods=['POST', 'OPTIONS'])
+# Middleware para manejo de errores
+@app.errorhandler(Exception)
+def handle_exception(e):
+    logging.exception("Error no manejado: ")
+    return jsonify({
+        "success": False,
+        "message": "Error interno del servidor",
+        "error": str(e)
+    }), 500
+
+
+
+
+@app.route('/api/login', methods=['POST'])
 def login():
-    # Configurar headers CORS base
-    headers = {
-        'Access-Control-Allow-Origin': 'http://localhost:3000',
-        'Access-Control-Allow-Credentials': 'true',
-        'Access-Control-Allow-Methods': 'POST, OPTIONS',
-        'Access-Control-Allow-Headers': 'Content-Type',
-    }
-
-    if request.method == 'OPTIONS':
-        response = app.make_default_options_response()
-        response.headers.extend(headers)
-        return response
-
+    """
+    Maneja el proceso de login de usuarios.
+    Espera un JSON con username y password.
+    Retorna la información del usuario si el login es exitoso.
+    """
     try:
-        # Obtener y decodificar los datos manualmente
-        raw_data = request.get_data()
-        if not raw_data:
-            logging.error("No raw data received")
-            response = jsonify({
-                "success": False,
-                "message": "No data received"
-            }), 400
-            response[0].headers.extend(headers)
-            return response
-
-        try:
-            data = json.loads(raw_data.decode('utf-8'))
-            logging.info("Successfully parsed JSON data")
-        except json.JSONDecodeError as e:
-            logging.error(f"JSON decode error: {str(e)}")
-            data = None
-        except Exception as e:
-            logging.error(f"Error decoding data: {str(e)}")
-            data = None
-
+        # Obtener datos JSON
+        data = request.get_json()
+        
+        # Verificar si hay datos
         if not data:
-            logging.error("Could not parse request data")
-            response = jsonify({
+            logging.error("No se recibieron datos en la solicitud")
+            return jsonify({
                 "success": False,
-                "message": "Invalid request format"
+                "message": "No se recibieron datos"
             }), 400
-            response[0].headers.extend(headers)
-            return response
 
         # Validar campos requeridos
-        if 'username' not in data or 'password' not in data:
-            logging.warning("Missing username or password in request")
-            response = jsonify({
+        if not all(field in data for field in ['username', 'password']):
+            logging.warning("Faltan campos requeridos en la solicitud")
+            return jsonify({
                 "success": False,
-                "message": "Username and password are required"
+                "message": "Se requieren nombre de usuario y contraseña"
             }), 400
-            response[0].headers.extend(headers)
-            return response
 
-        # Intentar el login
-        try:
-            logging.info(f"Attempting login for user: {data['username']}")
-            user = user_manager.login(data['username'], data['password'])
-            
-            if user:
-                logging.info(f"Login successful for user: {data['username']}")
-                response = jsonify({
-                    "success": True,
-                    "user": user
-                })
-                response.headers.extend(headers)
-                return response
-            else:
-                logging.warning(f"Invalid credentials for user: {data['username']}")
-                response = jsonify({
-                    "success": False,
-                    "message": "Invalid credentials"
-                }), 401
-                response[0].headers.extend(headers)
-                return response
+        # Intentar login
+        logging.info(f"Intentando login para usuario: {data['username']}")
+        user = user_manager.login(data['username'], data['password'])
 
-        except Exception as login_error:
-            logging.error(f"Login process error: {str(login_error)}")
-            response = jsonify({
+        if not user:
+            logging.warning(f"Credenciales inválidas para usuario: {data['username']}")
+            return jsonify({
                 "success": False,
-                "message": "Error during login process"
-            }), 500
-            response[0].headers.extend(headers)
-            return response
+                "message": "Credenciales inválidas"
+            }), 401
+
+        # Login exitoso
+        logging.info(f"Login exitoso para usuario: {data['username']}")
+        return jsonify({
+            "success": True,
+            "user": user,
+            "message": "Login exitoso"
+        }), 200
+
+    except json.JSONDecodeError as e:
+        logging.error(f"Error al decodificar JSON: {str(e)}")
+        return jsonify({
+            "success": False,
+            "message": "Formato de datos inválido"
+        }), 400
 
     except Exception as e:
-        logging.exception(f"Unexpected login error: {str(e)}")
-        response = jsonify({
+        logging.exception(f"Error inesperado durante el login: {str(e)}")
+        return jsonify({
             "success": False,
-            "message": f"An error occurred during login: {str(e)}"
+            "message": "Error interno del servidor"
         }), 500
-        response[0].headers.extend(headers)
-        return response
-
 @app.route('/api/register', methods=['POST', 'OPTIONS'])
 def register():
     if request.method == 'OPTIONS':
@@ -1269,9 +1253,33 @@ def point_in_polygon(x, y, poly):
     return inside
 
 # Inicialización de la API
-def start_api():
-    socketio.run(app, host=API_HOST, port=API_PORT, debug=True)
+
+def start_api(shutdown_event: Event = None):
+    """
+    Iniciar la aplicación Flask con SocketIO
+    
+    Args:
+        shutdown_event: Evento para controlar el apagado del servidor
+    """
+    global _socket_instance
+    _socket_instance = socketio
+    
+    api_config = Config.get_api_config()
+    
+    # Configurar Flask
+    app.config.update(Config.get_flask_config())
+    
+    # Iniciar el servidor
+    socketio.run(
+        app,
+        host=api_config['host'],
+        port=api_config['port'],
+        debug=api_config['debug'],
+        use_reloader=False
+    )
+    
+    if shutdown_event:
+        shutdown_event.set()
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.DEBUG)
     start_api()

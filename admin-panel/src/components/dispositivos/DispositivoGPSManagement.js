@@ -4,8 +4,7 @@ import { useTheme } from '../../contexts/ThemeContext';
 import DispositivoGPSList from './DispositivoGPSList';
 import DispositivoGPSForm from './DispositivoGPSForm';
 import { DevicePhoneMobileIcon, PlusIcon } from '@heroicons/react/24/solid';
-import { API_BASE_URL } from '../../config';
-
+import config from '../../config/config';
 const DispositivoGPSManagement = () => {
   const [dispositivos, setDispositivos] = useState([]);
   const [selectedDispositivo, setSelectedDispositivo] = useState(null);
@@ -27,7 +26,7 @@ const DispositivoGPSManagement = () => {
 
   const fetchDispositivos = async () => {
     try {
-      const response = await axios.get(`${API_BASE_URL}/dispositivos`);
+      const response = await axios.get(`${config.api.baseURL}/api/dispositivos`);
       if (response.data.success) {
         setDispositivos(response.data.dispositivos);
       }
@@ -38,7 +37,7 @@ const DispositivoGPSManagement = () => {
 
   const handleAddDispositivo = async (newDispositivo) => {
     try {
-      const response = await axios.post(`${API_BASE_URL}/dispositivos`, newDispositivo);
+      const response = await axios.post(`${config.api.baseURL}/api/dispositivos`, newDispositivo);
       if (response.data.success) {
         await fetchDispositivos();
         setIsFormVisible(false);
@@ -51,7 +50,7 @@ const DispositivoGPSManagement = () => {
   const handleUpdateDispositivo = async (updatedDispositivo) => {
     try {
       const response = await axios.put(
-        `${API_BASE_URL}/dispositivos/${updatedDispositivo.id}`, 
+        `${config.api.baseURL}/api/dispositivos/${updatedDispositivo.id}`, 
         updatedDispositivo
       );
       if (response.data.success) {
@@ -66,7 +65,7 @@ const DispositivoGPSManagement = () => {
 
   const handleDeleteDispositivo = async (dispositivoId) => {
     try {
-      const response = await axios.delete(`${API_BASE_URL}/dispositivos/${dispositivoId}`);
+      const response = await axios.delete(`${config.api.baseURL}/api/dispositivos/${dispositivoId}`);
       if (response.data.success) {
         await fetchDispositivos();
       }

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useTheme } from '../../contexts/ThemeContext';
-import { PlusIcon, LinkIcon, MapPinIcon, TruckIcon } from '@heroicons/react/24/solid';
+import { PlusIcon, LinkIcon, MapPinIcon } from '@heroicons/react/24/solid';
 
 const GPSVehicleManagement = () => {
   const [gpsDevices, setGPSDevices] = useState([]);

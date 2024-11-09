@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { API_BASE_URL } from '../../../config';
+import config from '../../../config/config';
 import { useTheme } from '../../../contexts/ThemeContext';
 import { 
   PlusIcon, 
@@ -42,7 +42,7 @@ const RoleManagement = () => {
   const fetchRoles = async () => {
     setLoading(true);
     try {
-      const response = await axios.get(`${API_BASE_URL}/roles`);
+      const response = await axios.get(`${config.api.baseURL}/api/roles`);
       if (response.data.success) {
         setRoles(response.data.roles);
       }
@@ -82,7 +82,7 @@ const RoleManagement = () => {
     try {
       if (editingRole) {
         const response = await axios.put(
-          `${API_BASE_URL}/roles/${editingRole.id}`, 
+          `${config.api.baseURL}/api/roles/${editingRole.id}`, 
           formData
         );
         if (response.data.success) {
@@ -92,7 +92,7 @@ const RoleManagement = () => {
           setEditingRole(null);
         }
       } else {
-        const response = await axios.post(`${API_BASE_URL}/roles`, formData);
+        const response = await axios.post(`${config.api.baseURL}/api/roles`, formData);
         if (response.data.success) {
           setRoles([...roles, response.data.role]);
         }
@@ -115,7 +115,7 @@ const RoleManagement = () => {
 
     setLoading(true);
     try {
-      const response = await axios.delete(`${API_BASE_URL}/roles/${id}`);
+      const response = await axios.delete(`${config.api.baseURL}/api/roles/${id}`);
       if (response.data.success) {
         setRoles(roles.filter(role => role.id !== id));
         if (editingRole?.id === id) {

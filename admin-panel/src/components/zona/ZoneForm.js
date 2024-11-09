@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useTheme } from '../../contexts/ThemeContext';
 import axios from 'axios';
-
+import config from '../../config/config';
 const ZoneForm = ({ zone, onSubmit, onCancel, isCreating }) => {
   const [name, setName] = useState('');
   const [selectedImeis, setSelectedImeis] = useState([]);
@@ -21,7 +21,7 @@ const ZoneForm = ({ zone, onSubmit, onCancel, isCreating }) => {
 
   const fetchDispositivos = async () => {
     try {
-      const response = await axios.get('http://localhost/devline_app/gps_devline/backend/index.php?action=getAllDispositivosGPS');
+      const response = await axios.get(`${config.api.baseURL}/api/getAllDispositivosGPS`);
       if (response.data.success) {
         setDispositivos(response.data.dispositivos);
       }

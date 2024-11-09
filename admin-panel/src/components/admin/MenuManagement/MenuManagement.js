@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { API_BASE_URL } from '../../../config';
+import config from '../../../config/config';
 import { useTheme } from '../../../contexts/ThemeContext';
 import { 
   PlusIcon, 
@@ -40,7 +40,7 @@ const MenuManagement = () => {
   const fetchMenus = async () => {
     setLoading(true);
     try {
-      const response = await axios.get(`${API_BASE_URL}/menus`);
+      const response = await axios.get(`${config.api.baseURL}/api/menus`);
       if (Array.isArray(response.data)) {
         setMenus(response.data);
       } else if (response.data.success && response.data.menus) {
@@ -77,7 +77,7 @@ const MenuManagement = () => {
     try {
       if (editingMenu) {
         const response = await axios.put(
-          `${API_BASE_URL}/menus/${editingMenu.id}`, 
+          `${config.api.baseURL}/api/menus/${editingMenu.id}`, 
           formData
         );
         if (response.data.success) {
@@ -87,7 +87,7 @@ const MenuManagement = () => {
           setEditingMenu(null);
         }
       } else {
-        const response = await axios.post(`${API_BASE_URL}/menus`, formData);
+        const response = await axios.post(`${config.api.baseURL}/api/menus`, formData);
         if (response.data.success) {
           setMenus([...menus, response.data.menu]);
         }
@@ -107,7 +107,7 @@ const MenuManagement = () => {
 
     setLoading(true);
     try {
-      const response = await axios.delete(`${API_BASE_URL}/menus/${id}`);
+      const response = await axios.delete(`${config.api.baseURL}/api/menus/${id}`);
       if (response.data.success) {
         setMenus(menus.filter(menu => menu.id !== id));
         if (editingMenu?.id === id) {

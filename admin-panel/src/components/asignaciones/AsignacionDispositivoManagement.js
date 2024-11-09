@@ -4,8 +4,7 @@ import { useTheme } from '../../contexts/ThemeContext';
 import AsignacionDispositivoList from './AsignacionDispositivoList';
 import AsignacionDispositivoForm from './AsignacionDispositivoForm';
 import { LinkIcon, PlusIcon } from '@heroicons/react/24/solid';
-import { API_BASE_URL } from '../../config';
-
+import config from '../../config/config';
 const AsignacionDispositivoManagement = () => {
   const [asignaciones, setAsignaciones] = useState([]);
   const [selectedAsignacion, setSelectedAsignacion] = useState(null);
@@ -28,7 +27,7 @@ const AsignacionDispositivoManagement = () => {
   const fetchAsignaciones = async () => {
     setLoading(true);
     try {
-      const response = await axios.get(`${API_BASE_URL}/asignaciones`);
+      const response = await axios.get(`${config.api.baseURL}/api/asignaciones`);
       if (response.data.success) {
         setAsignaciones(response.data.asignaciones);
       } else {
@@ -44,7 +43,7 @@ const AsignacionDispositivoManagement = () => {
   const handleAddAsignacion = async (newAsignacion) => {
     setLoading(true);
     try {
-      const response = await axios.post(`${API_BASE_URL}/asignaciones`, newAsignacion);
+      const response = await axios.post(`${config.api.baseURL}/api/asignaciones`, newAsignacion);
       if (response.data.success) {
         await fetchAsignaciones();
         setIsFormVisible(false);
@@ -62,7 +61,7 @@ const AsignacionDispositivoManagement = () => {
     setLoading(true);
     try {
       const response = await axios.put(
-        `${API_BASE_URL}/asignaciones/${updatedAsignacion.id}`, 
+        `${config.api.baseURL}/api/asignaciones/${updatedAsignacion.id}`, 
         updatedAsignacion
       );
       if (response.data.success) {
@@ -86,7 +85,7 @@ const AsignacionDispositivoManagement = () => {
 
     setLoading(true);
     try {
-      const response = await axios.delete(`${API_BASE_URL}/asignaciones/${asignacionId}`);
+      const response = await axios.delete(`${config.api.baseURL}/api/asignaciones/${asignacionId}`);
       if (response.data.success) {
         await fetchAsignaciones();
         if (selectedAsignacion?.id === asignacionId) {

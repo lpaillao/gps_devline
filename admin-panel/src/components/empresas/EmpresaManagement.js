@@ -4,8 +4,7 @@ import { useTheme } from '../../contexts/ThemeContext';
 import EmpresaList from './EmpresaList';
 import EmpresaForm from './EmpresaForm';
 import { BuildingOfficeIcon, PlusIcon } from '@heroicons/react/24/solid';
-import { API_BASE_URL } from '../../config';
-
+import config from '../../config/config';
 const EmpresaManagement = () => {
   const [empresas, setEmpresas] = useState([]);
   const [selectedEmpresa, setSelectedEmpresa] = useState(null);
@@ -28,7 +27,7 @@ const EmpresaManagement = () => {
   const fetchEmpresas = async () => {
     setLoading(true);
     try {
-      const response = await axios.get(`${API_BASE_URL}/empresas`);
+      const response = await axios.get(`${config.api.baseURL}/api/empresas`);
       if (response.data.success) {
         setEmpresas(response.data.empresas);
       } else {
@@ -44,7 +43,7 @@ const EmpresaManagement = () => {
   const handleAddEmpresa = async (newEmpresa) => {
     setLoading(true);
     try {
-      const response = await axios.post(`${API_BASE_URL}/empresas`, newEmpresa);
+      const response = await axios.post(`${config.api.baseURL}/api/empresas`, newEmpresa);
       if (response.data.success) {
         await fetchEmpresas();
         setIsFormVisible(false);
@@ -62,7 +61,7 @@ const EmpresaManagement = () => {
     setLoading(true);
     try {
       const response = await axios.put(
-        `${API_BASE_URL}/empresas/${updatedEmpresa.id}`, 
+        `${config.api.baseURL}/api/empresas/${updatedEmpresa.id}`, 
         updatedEmpresa
       );
       if (response.data.success) {
@@ -86,7 +85,7 @@ const EmpresaManagement = () => {
 
     setLoading(true);
     try {
-      const response = await axios.delete(`${API_BASE_URL}/empresas/${empresaId}`);
+      const response = await axios.delete(`${config.api.baseURL}/api/empresas/${empresaId}`);
       if (response.data.success) {
         await fetchEmpresas();
         if (selectedEmpresa?.id === empresaId) {

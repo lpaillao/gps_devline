@@ -1,12 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { useTheme } from '../../contexts/ThemeContext';
 import { MapIcon, XMarkIcon } from '@heroicons/react/24/solid';
-import { GPS_SERVER_URL } from '../../config';
 import ZoneList from './ZoneList';
 import ZoneForm from './ZoneForm';
 import ZoneMap from './ZoneMap';
 import { toast } from 'react-toastify';
+import config from '../../config/config';
 
 const ControlZonesManagement = () => {
   const [zones, setZones] = useState([]);
@@ -14,7 +13,7 @@ const ControlZonesManagement = () => {
   const [mapMode, setMapMode] = useState('view'); // 'view', 'edit', 'create'
   const [newZoneData, setNewZoneData] = useState(null);
   const [showSidebar, setShowSidebar] = useState(false);
-  const { isDarkMode } = useTheme();
+
 
   useEffect(() => {
     fetchZones();
@@ -22,7 +21,7 @@ const ControlZonesManagement = () => {
 
   const fetchZones = async () => {
     try {
-      const response = await axios.get(`${GPS_SERVER_URL}/zones`);
+      const response = await axios.get(`${config.api.baseURL}/api/zones`);
       setZones(response.data);
     } catch (error) {
       console.error('Error al obtener zonas de control:', error);
@@ -42,7 +41,7 @@ const ControlZonesManagement = () => {
     };
 
     try {
-      const response = await axios.post(`${GPS_SERVER_URL}/zones`, newZone);
+      const response = await axios.post(`${config.api.baseURL}/api/zones`, newZone);
       if (response.status === 201) {
         fetchZones();
         setSelectedZone(null);
@@ -59,7 +58,7 @@ const ControlZonesManagement = () => {
 
   const handleUpdateZone = async (updatedZone) => {
     try {
-      const response = await axios.put(`${GPS_SERVER_URL}/zones/${updatedZone.id}`, updatedZone);
+      const response = await axios.put(`${config.api.baseURL}/api/zones/${updatedZone.id}`, updatedZone);
       if (response.status === 200) {
         fetchZones();
         setSelectedZone(null);
@@ -76,7 +75,7 @@ const ControlZonesManagement = () => {
   const handleDeleteZone = async (zoneId) => {
     if (window.confirm('¿Estás seguro de que quieres eliminar esta zona?')) {
       try {
-        const response = await axios.delete(`${GPS_SERVER_URL}/zones/${zoneId}`);
+        const response = await axios.delete(`${config.api.baseURL}/api/zones/${zoneId}`);
         if (response.status === 200) {
           fetchZones();
           setSelectedZone(null);

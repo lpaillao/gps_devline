@@ -4,8 +4,7 @@ import { useTheme } from '../../contexts/ThemeContext';
 import UbicacionList from './UbicacionList';
 import UbicacionForm from './UbicacionForm';
 import { MapPinIcon, PlusIcon, ExclamationCircleIcon } from '@heroicons/react/24/solid';
-import { API_BASE_URL } from '../../config';
-
+import config from '../../config/config';
 const UbicacionManagement = () => {
   const [ubicaciones, setUbicaciones] = useState([]);
   const [selectedUbicacion, setSelectedUbicacion] = useState(null);
@@ -28,7 +27,7 @@ const UbicacionManagement = () => {
   const fetchUbicaciones = async () => {
     setLoading(true);
     try {
-      const response = await axios.get(`${API_BASE_URL}/ubicaciones`);
+      const response = await axios.get(`${config.api.baseURL}/api/ubicaciones`);
       if (response.data.success) {
         const sortedUbicaciones = response.data.ubicaciones.sort((a, b) => 
           new Date(b.fecha_hora) - new Date(a.fecha_hora)
@@ -57,7 +56,7 @@ const UbicacionManagement = () => {
         bateria: newUbicacion.bateria ? parseFloat(newUbicacion.bateria) : null
       };
 
-      const response = await axios.post(`${API_BASE_URL}/ubicaciones`, formattedUbicacion);
+      const response = await axios.post(`${config.api.baseURL}/api/ubicaciones`, formattedUbicacion);
       
       if (response.data.success) {
         await fetchUbicaciones();
@@ -75,7 +74,7 @@ const UbicacionManagement = () => {
   const handleGetUbicacionesByDispositivo = async (dispositivo_id) => {
     setLoading(true);
     try {
-      const response = await axios.get(`${API_BASE_URL}/ubicaciones/dispositivo/${dispositivo_id}`);
+      const response = await axios.get(`${config.api.baseURL}/api/ubicaciones/dispositivo/${dispositivo_id}`);
       if (response.data.success) {
         const sortedUbicaciones = response.data.ubicaciones.sort((a, b) => 
           new Date(b.fecha_hora) - new Date(a.fecha_hora)

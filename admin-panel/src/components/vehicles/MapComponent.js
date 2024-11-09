@@ -7,10 +7,10 @@ import { useTheme } from '../../contexts/ThemeContext';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 import axios from 'axios';
-import { GPS_SERVER_URL } from '../../config';
+
 import { MagnifyingGlassIcon } from '@heroicons/react/24/solid';
 import HistorySlider from './HistorySlider';
-
+import config from '../../config/config';
 
 const startIcon = new L.Icon({
   iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png',
@@ -87,7 +87,7 @@ const MapComponent = ({
       const formattedStartDate = startDate.toISOString().split('T')[0];
       const formattedEndDate = endDate.toISOString().split('T')[0];
       console.log('Fetching history data:', { formattedStartDate, formattedEndDate, pointLimit });
-      const response = await axios.get(`${GPS_SERVER_URL}/gps/${device.imei}/history?start_date=${formattedStartDate}&end_date=${formattedEndDate}&limit=${pointLimit}`);
+      const response = await axios.get(`${config.api.baseURL}/api/gps/${device.imei}/history?start_date=${formattedStartDate}&end_date=${formattedEndDate}&limit=${pointLimit}`);
       if (response.data && Array.isArray(response.data)) {
         console.log('History data received:', response.data);
         setLocalHistoryData(response.data);

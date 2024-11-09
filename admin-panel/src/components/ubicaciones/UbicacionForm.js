@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useTheme } from '../../contexts/ThemeContext';
 import axios from 'axios';
-import { API_BASE_URL } from '../../config';
 
+import config from '../../config/config';
 const UbicacionForm = ({ ubicacion, onSubmit, onCancel, loading }) => {
   const [formData, setFormData] = useState({
     dispositivo_gps_id: '',
@@ -35,7 +35,7 @@ const UbicacionForm = ({ ubicacion, onSubmit, onCancel, loading }) => {
   const fetchDispositivos = async () => {
     setLoadingDispositivos(true);
     try {
-      const response = await axios.get(`${API_BASE_URL}/dispositivos`);
+      const response = await axios.get(`${config.api.baseURL}/api/dispositivos`);
       if (response.data.success) {
         setDispositivos(response.data.dispositivos);
       } else {
