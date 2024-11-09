@@ -27,3 +27,10 @@ cryptography>=3.4.7
 python-dotenv
 python-jose[cryptography]
 eventlet
+# Servidor WSGI para producción
+gunicorn==21.2.0
+gevent==23.9.1
+gevent-websocket==0.10.1
+
+# Para WebSocket
+simple-websocket>=0.10.0
