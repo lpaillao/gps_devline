@@ -31,7 +31,7 @@ class Config:
     LOG_DIR: Path = BASE_DIR / 'logs'
     STATIC_DIR: Path = BASE_DIR / 'static'
 
-    # Server
+     # Server
     SERVER_CONFIG = {
         'host': os.getenv('SERVER_HOST', '0.0.0.0'),
         'port': int(os.getenv('SERVER_PORT', '6006')),
@@ -40,7 +40,7 @@ class Config:
     # API
     API_CONFIG = {
         'host': os.getenv('API_HOST', '0.0.0.0'),
-        'port': int(os.getenv('API_PORT', '5000')),
+        'port': int(os.getenv('PORT', '8080')),  # DigitalOcean usa la variable PORT
     }
 
     # Database
@@ -99,10 +99,12 @@ class Config:
     @classmethod
     def get_cors_config(cls) -> Dict[str, Any]:
         """Obtiene la configuración de CORS"""
+        # Obtener el dominio de la aplicación de DigitalOcean
+        app_domain = os.getenv('APP_URL', 'http://localhost:3000')
         return {
             "resources": {
                 r"/api/*": {
-                    "origins": cls.CORS_CONFIG['origins'],
+                    "origins": [app_domain] + cls.CORS_CONFIG['origins'],
                     "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
                     "allow_headers": ["Content-Type", "Authorization"],
                     "expose_headers": ["Content-Type", "Authorization"],
@@ -112,11 +114,13 @@ class Config:
             }
         }
 
+
     @classmethod
     def get_socketio_config(cls) -> Dict[str, Any]:
         """Obtiene la configuración de SocketIO"""
+        app_domain = os.getenv('APP_URL', 'http://localhost:3000')
         return {
-            "cors_allowed_origins": cls.CORS_CONFIG['socket_origin'],
+            "cors_allowed_origins": [app_domain, cls.CORS_CONFIG['socket_origin']],
             "async_mode": 'eventlet'
         }
 
@@ -148,7 +152,7 @@ class Config:
         """Obtiene la configuración de la API"""
         return {
             'host': cls.API_CONFIG['host'],
-            'port': cls.API_CONFIG['port'],
+            'port': int(os.getenv('PORT', cls.API_CONFIG['port'])),  # Prioriza PORT de DigitalOcean
             'debug': cls.DEBUG
         }
 
