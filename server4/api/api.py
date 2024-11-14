@@ -7,6 +7,7 @@ import json
 from datetime import datetime, timedelta
 import logging
 import socket 
+import psutil
 # Importar managers
 from data.data_manager import DataManager
 from data.mysql_user_manager import MySQLUserManager
@@ -148,7 +149,33 @@ def health_check():
         logging.error(f"GPS server health check failed: {str(e)}")
 
     return jsonify(status), 200 if status["status"] == "healthy" else 500
+def get_uptime():
+    """
+    Obtiene el tiempo de ejecución de la aplicación
+    """
+    try:
+        process = psutil.Process(os.getpid())
+        start_time = datetime.fromtimestamp(process.create_time())
+        uptime = datetime.now() - start_time
+        return str(uptime)
+    except:
+        return "unknown"
 
+def get_memory_usage():
+    """
+    Obtiene información detallada del uso de memoria
+    """
+    try:
+        process = psutil.Process(os.getpid())
+        memory_info = process.memory_info()
+        return {
+            "percent": process.memory_percent(),
+            "rss_mb": memory_info.rss / 1024 / 1024,  # MB
+            "vms_mb": memory_info.vms / 1024 / 1024,  # MB
+            "available_mb": psutil.virtual_memory().available / 1024 / 1024
+        }
+    except:
+        return "unknown"
 # Middleware para logging
 @app.before_request
 def log_request_info():
