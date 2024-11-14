@@ -1,47 +1,35 @@
-import multiprocessing
 import os
+import multiprocessing
 
-# Server socket
+# Configuración del servidor
 bind = f"0.0.0.0:{os.getenv('PORT', '8080')}"
-backlog = 2048
-
-# Worker processes
-workers = 1  # Solo un worker para evitar problemas con el servidor GPS
+workers = 1  # Un solo worker para evitar problemas con el servidor GPS
 worker_class = 'eventlet'
 worker_connections = 1000
 timeout = 120
-keepalive = 2
 
 # Logging
+loglevel = 'info'
 accesslog = '-'
 errorlog = '-'
-loglevel = 'info'
+capture_output = True
 
-# Process naming
-proc_name = 'gps-tracking-api'
-
-# Server mechanics
+# Configuración de proceso
 daemon = False
 pidfile = None
 umask = 0
 user = None
 group = None
-tmp_upload_dir = None
 
-# SSL
-keyfile = None
-certfile = None
-
-# Debugging
-reload = False
-reload_engine = 'auto'
-
-# Server hooks
+# Hooks del servidor
 def on_starting(server):
+    """Se ejecuta cuando el servidor está iniciando"""
     server.log.info("Starting GPS Tracking System")
 
-def on_reload(server):
-    server.log.info("Reloading GPS Tracking System")
+def when_ready(server):
+    """Se ejecuta cuando el servidor está listo"""
+    server.log.info("Server is ready. Starting GPS Server...")
 
 def on_exit(server):
-    server.log.info("Stopping GPS Tracking System")
+    """Se ejecuta cuando el servidor está cerrando"""
+    server.log.info("Shutting down GPS Tracking System")
