@@ -6,6 +6,7 @@ from threading import Event
 import json
 from datetime import datetime, timedelta
 import logging
+import socket 
 # Importar managers
 from data.data_manager import DataManager
 from data.mysql_user_manager import MySQLUserManager
@@ -59,7 +60,57 @@ def index():
         "status": "running",
         "documentation": "/api"
     })
-
+# En api.py, agregar este endpoint
+@app.route('/api/gps-server/status')
+def gps_server_status():
+    """
+    Verifica el estado del servidor GPS
+    """
+    try:
+        # Usar el módulo socket directamente
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.settimeout(2)  # Agregar timeout para evitar bloqueos
+        
+        # Intentar conectar al puerto del servidor GPS
+        result = sock.connect_ex((Config.SERVER_CONFIG['host'], 
+                                int(Config.SERVER_CONFIG['port'])))
+        sock.close()
+        
+        # Obtener información adicional del sistema
+        status = {
+            "status": "running" if result == 0 else "stopped",
+            "host": Config.SERVER_CONFIG['host'],
+            "port": Config.SERVER_CONFIG['port'],
+            "timestamp": datetime.utcnow().isoformat(),
+            "details": {
+                "socket_error_code": result,
+                "socket_status": "open" if result == 0 else "closed"
+            }
+        }
+        
+        # Agregar información de conexiones activas
+        if hasattr(DataManager, 'get_connected_devices'):
+            connected_devices = DataManager.get_connected_devices()
+            status.update({
+                "connected_devices": len(connected_devices),
+                "devices": connected_devices
+            })
+        
+        # Si el servidor no está corriendo, devolver 503
+        if result != 0:
+            return jsonify(status), 503
+            
+        return jsonify(status), 200
+        
+    except Exception as e:
+        logging.error(f"Error checking GPS server status: {e}")
+        return jsonify({
+            "status": "error",
+            "error": str(e),
+            "host": Config.SERVER_CONFIG['host'],
+            "port": Config.SERVER_CONFIG['port'],
+            "timestamp": datetime.utcnow().isoformat()
+        }), 500
 # Health check endpoint
 @app.route('/health')
 @app.route('/api/health')
