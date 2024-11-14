@@ -47,6 +47,57 @@ empresa_manager = MySQLEmpresaManager()
 ubicacion_manager = MySQLUbicacionManager()
 role_manager = MySQLRoleManager()
 
+
+@app.route('/')
+def index():
+    """
+    Ruta principal que muestra información básica de la API
+    """
+    return jsonify({
+        "name": "GPS Tracking System API",
+        "version": "1.0",
+        "status": "running",
+        "documentation": "/api"
+    })
+
+# Health check endpoint
+@app.route('/health')
+@app.route('/api/health')
+def health_check():
+    """
+    Health check endpoint para DigitalOcean App Platform
+    """
+    status = {
+        "status": "healthy",
+        "timestamp": datetime.utcnow().isoformat(),
+        "services": {
+            "api": "running"
+        }
+    }
+
+    # Verificar conexión a la base de datos
+    try:
+        user_manager.get_all_users()
+        status["services"]["database"] = "connected"
+    except Exception as e:
+        status["services"]["database"] = "disconnected"
+        status["status"] = "degraded"
+        logging.error(f"Database health check failed: {str(e)}")
+
+    # Verificar servidor GPS
+    try:
+        sock = socketio.socket(socketio.AF_INET, socketio.SOCK_STREAM)
+        result = sock.connect_ex((Config.SERVER_CONFIG['host'], 
+                                int(Config.SERVER_CONFIG['port'])))
+        sock.close()
+        status["services"]["gps_server"] = "running" if result == 0 else "stopped"
+    except Exception as e:
+        status["services"]["gps_server"] = "error"
+        status["status"] = "degraded"
+        logging.error(f"GPS server health check failed: {str(e)}")
+
+    return jsonify(status), 200 if status["status"] == "healthy" else 500
+
 # Middleware para logging
 @app.before_request
 def log_request_info():
@@ -63,8 +114,6 @@ def handle_exception(e):
         "message": "Error interno del servidor",
         "error": str(e)
     }), 500
-
-
 
 
 @app.route('/api/login', methods=['POST'])
@@ -1264,22 +1313,39 @@ def start_api(shutdown_event: Event = None):
     global _socket_instance
     _socket_instance = socketio
     
-    api_config = Config.get_api_config()
-    
     # Configurar Flask
     app.config.update(Config.get_flask_config())
     
-    # Iniciar el servidor
-    socketio.run(
-        app,
-        host=api_config['host'],
-        port=api_config['port'],
-        debug=api_config['debug'],
-        use_reloader=False
-    )
+    if os.getenv('FLASK_ENV') == 'production':
+        # En producción, usar el puerto proporcionado por DigitalOcean
+        port = int(os.getenv('PORT', '8080'))
+        host = '0.0.0.0'
+        debug = False
+    else:
+        # En desarrollo, usar la configuración normal
+        api_config = Config.get_api_config()
+        port = api_config['port']
+        host = api_config['host']
+        debug = api_config['debug']
     
-    if shutdown_event:
-        shutdown_event.set()
+    try:
+        socketio.run(
+            app,
+            host=host,
+            port=port,
+            debug=debug,
+            use_reloader=False,
+            cors_allowed_origins=Config.CORS_CONFIG['origins']
+        )
+    except Exception as e:
+        logging.error(f"Error starting API server: {str(e)}")
+        if shutdown_event:
+            shutdown_event.set()
+    finally:
+        if shutdown_event:
+            shutdown_event.set()
 
 if __name__ == "__main__":
-    start_api()
+    # Si se ejecuta directamente, iniciar la API
+    port = int(os.getenv('PORT', '8080'))
+    socketio.run(app, host='0.0.0.0', port=port)

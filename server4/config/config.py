@@ -61,8 +61,12 @@ class Config:
 
     # CORS
     CORS_CONFIG = {
-        'origins': _get_list(os.getenv('CORS_ORIGINS', 'http://localhost:3000')),
-        'socket_origin': os.getenv('SOCKET_CORS_ORIGIN', 'http://localhost:3000')
+        'origins': [
+            'https://gps-devline-ww883.ondigitalocean.app',
+            'http://localhost:3000',
+            'http://localhost:8080'
+        ],
+        'socket_origin': 'http://localhost:3000'  # Añadido para socket.io
     }
 
     # Logging
@@ -99,12 +103,15 @@ class Config:
     @classmethod
     def get_cors_config(cls) -> Dict[str, Any]:
         """Obtiene la configuración de CORS"""
-        # Obtener el dominio de la aplicación de DigitalOcean
         app_domain = os.getenv('APP_URL', 'http://localhost:3000')
+        origins = [app_domain] + cls.CORS_CONFIG['origins']
+        # Eliminar duplicados y None values
+        origins = list(set(filter(None, origins)))
+        
         return {
             "resources": {
                 r"/api/*": {
-                    "origins": [app_domain] + cls.CORS_CONFIG['origins'],
+                    "origins": origins,
                     "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
                     "allow_headers": ["Content-Type", "Authorization"],
                     "expose_headers": ["Content-Type", "Authorization"],
@@ -119,8 +126,12 @@ class Config:
     def get_socketio_config(cls) -> Dict[str, Any]:
         """Obtiene la configuración de SocketIO"""
         app_domain = os.getenv('APP_URL', 'http://localhost:3000')
+        origins = [app_domain, cls.CORS_CONFIG['socket_origin']]
+        # Eliminar duplicados y None values
+        origins = list(set(filter(None, origins)))
+        
         return {
-            "cors_allowed_origins": [app_domain, cls.CORS_CONFIG['socket_origin']],
+            "cors_allowed_origins": origins,
             "async_mode": 'eventlet'
         }
 
