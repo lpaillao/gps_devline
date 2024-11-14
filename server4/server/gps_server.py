@@ -32,8 +32,8 @@ class GPSServer:
         
         # Cargar configuración
         self.config = Config.get_server_config()
-        self.host = self.config['host']
-        self.port = self.config['port']
+        self.host = '0.0.0.0'  # Forzar escucha en todas las interfaces
+        self.port = int(self.config['port'])
         self.backlog = self.config['backlog']
         self.max_connections = self.config['max_connections']
         self.buffer_size = self.config['buffer_size']
@@ -47,25 +47,39 @@ class GPSServer:
             return True
             
         try:
+            # Verificar si el puerto está en uso
+            test_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            test_socket.settimeout(1)
+            result = test_socket.connect_ex((self.host, self.port))
+            test_socket.close()
+            
+            if result == 0:
+                logging.error(f"Port {self.port} is already in use")
+                return False
+            
+            # Crear y configurar el socket principal
             self.server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             self.server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             
-            # Configuración adicional del socket
-            if self.config.get('reuse_port', False):
+            # No usar SO_REUSEPORT en producción
+            if self.config.get('reuse_port', False) and not os.getenv('FLASK_ENV') == 'production':
                 self.server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
-                
-            # Configurar timeout
-            self.server.settimeout(self.config['timeout'])
+            
+            # Configurar timeout más corto para mejor respuesta
+            self.server.settimeout(1.0)
             
             # Vincular al puerto
             self.server.bind((self.host, self.port))
             self.server.listen(self.backlog)
             
+            logging.info(f"GPS Server initialized and bound to {self.host}:{self.port}")
             self._is_initialized = True
             return True
             
         except Exception as e:
             logging.error(f"Error initializing GPS server: {e}")
+            if self.server:
+                self.server.close()
             return False
             
     def start(self) -> bool:
@@ -83,7 +97,7 @@ class GPSServer:
             self.server_thread.daemon = True
             self.server_thread.start()
             
-            logging.info(f"GPS Server listening on {self.host}:{self.port}")
+            logging.info(f"GPS Server listening for connections on {self.host}:{self.port}")
             logging.info("Waiting for GPS device connections...")
             return True
             
@@ -96,29 +110,23 @@ class GPSServer:
         """Bucle principal del servidor"""
         while self.is_running:
             try:
-                # Aceptar conexiones con timeout
                 try:
                     client_socket, client_address = self.server.accept()
+                    client_socket.settimeout(30)  # timeout para clientes
                 except socket.timeout:
                     continue
                     
-                # Ignorar conexiones locales no deseadas
-                if client_address[0] in ['127.0.0.1', 'localhost']:
-                    logging.warning(f"Ignoring local connection attempt from {client_address}")
-                    client_socket.close()
-                    continue
-                    
-                # Verificar límite de conexiones
-                with self.connections_lock:
-                    if len(self.active_connections) >= self.max_connections:
-                        logging.warning(f"Connection limit reached. Rejecting {client_address}")
+                # En producción, aceptar todas las conexiones no locales
+                if os.getenv('FLASK_ENV') == 'production':
+                    if client_address[0] not in ['127.0.0.1', 'localhost']:
+                        self._handle_connection(client_socket, client_address)
+                    else:
+                        logging.warning(f"Ignoring local connection from {client_address}")
                         client_socket.close()
-                        continue
-                    self.active_connections.add(client_address)
+                else:
+                    # En desarrollo, aceptar todas las conexiones
+                    self._handle_connection(client_socket, client_address)
                     
-                # Manejar nueva conexión
-                self._handle_connection(client_socket, client_address)
-                
             except Exception as e:
                 if self.is_running:
                     logging.error(f"Error in server loop: {e}")
@@ -126,13 +134,20 @@ class GPSServer:
     def _handle_connection(self, client_socket: socket.socket, client_address: tuple):
         """Maneja una nueva conexión de dispositivo GPS"""
         try:
+            # Verificar límite de conexiones
+            with self.connections_lock:
+                if len(self.active_connections) >= self.max_connections:
+                    logging.warning(f"Connection limit reached. Rejecting {client_address}")
+                    client_socket.close()
+                    return
+                self.active_connections.add(client_address)
+            
             logging.info(f"New GPS device connection from {client_address}")
             
             handler = ClientHandler(client_socket, client_address)
             handler.daemon = True
             handler.start()
             
-            # Registrar cliente autenticado
             def on_auth_complete(imei: str):
                 if imei and imei != "unknown":
                     with self.clients_lock:
@@ -147,7 +162,7 @@ class GPSServer:
         except Exception as e:
             logging.error(f"Error handling connection {client_address}: {e}")
             self._cleanup_connection(client_address, client_socket)
-            
+
     def _cleanup_connection(self, address: tuple, socket: Optional[socket.socket] = None):
         """Limpia una conexión específica"""
         with self.connections_lock:
@@ -164,7 +179,6 @@ class GPSServer:
         """Limpia todos los recursos del servidor"""
         self.is_running = False
         
-        # Cerrar conexiones activas
         with self.clients_lock:
             for client in self.clients.values():
                 try:
@@ -173,7 +187,6 @@ class GPSServer:
                     pass
             self.clients.clear()
             
-        # Cerrar socket del servidor
         if self.server:
             try:
                 self.server.close()
@@ -184,14 +197,8 @@ class GPSServer:
         self._is_initialized = False
 
 def start_server(shutdown_event: Event) -> bool:
-    """
-    Inicia el servidor GPS
-    
-    Args:
-        shutdown_event: Evento para controlar el apagado del servidor
-    """
+    """Inicia el servidor GPS"""
     try:
-        # Obtener instancia única del servidor
         server = GPSServerInstance.get_instance()
         
         # Iniciar servidor
@@ -202,45 +209,6 @@ def start_server(shutdown_event: Event) -> bool:
         while not shutdown_event.is_set():
             shutdown_event.wait(1)
             
-        # Limpieza al recibir señal de apagado
-        server.cleanup()
-        return True
-        
-    except Exception as e:
-        logging.error(f"Error in GPS server: {e}")
-        return False
-    """
-    Inicia el servidor GPS
-    
-    Args:
-        shutdown_event: Evento para controlar el apagado del servidor
-    """
-    try:
-        # Verificar si el puerto ya está en uso
-        server_config = Config.get_server_config()
-        port = server_config.get('port', 6006)
-        
-        test_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        try:
-            test_socket.bind(('0.0.0.0', port))
-            test_socket.close()
-        except socket.error:
-            logging.error(f"Port {port} is already in use")
-            return False
-            
-        # Iniciar servidor GPS
-        server = GPSServer()
-        
-        # Iniciar en un thread separado
-        server_thread = Thread(target=server.start)
-        server_thread.daemon = True
-        server_thread.start()
-        
-        # Esperar señal de apagado
-        while not shutdown_event.is_set():
-            shutdown_event.wait(1)
-        
-        # Limpieza al recibir señal de apagado
         server.cleanup()
         return True
         
