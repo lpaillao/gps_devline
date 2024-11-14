@@ -29,6 +29,8 @@ def on_starting(server):
 def when_ready(server):
     """Se ejecuta cuando el servidor está listo"""
     server.log.info("Server is ready. Starting GPS Server...")
+    server.log.info(f"HTTP server is ready on port {os.getenv('PORT', '8080')}")
+    server.log.info(f"GPS server will listen on port {os.getenv('SERVER_PORT', '6006')}")
 
 def on_exit(server):
     """Se ejecuta cuando el servidor está cerrando"""
