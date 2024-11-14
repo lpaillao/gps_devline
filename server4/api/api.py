@@ -118,37 +118,102 @@ def gps_server_status():
 def health_check():
     """
     Health check endpoint para DigitalOcean App Platform
+    Verifica el estado de todos los servicios críticos
     """
-    status = {
-        "status": "healthy",
-        "timestamp": datetime.utcnow().isoformat(),
-        "services": {
-            "api": "running"
+    try:
+        status = {
+            "status": "healthy",
+            "timestamp": datetime.utcnow().isoformat(),
+            "services": {
+                "api": {
+                    "status": "running",
+                    "uptime": get_uptime(),
+                    "memory": get_memory_usage()
+                }
+            },
+            "system": {
+                "cpu_usage": psutil.cpu_percent(),
+                "memory_usage": psutil.virtual_memory().percent,
+                "disk_usage": psutil.disk_usage('/').percent
+            }
         }
-    }
 
-    # Verificar conexión a la base de datos
-    try:
-        user_manager.get_all_users()
-        status["services"]["database"] = "connected"
+        # Verificar conexión a la base de datos
+        try:
+            start_time = datetime.now()
+            user_manager.get_all_users()
+            response_time = (datetime.now() - start_time).total_seconds()
+            
+            status["services"]["database"] = {
+                "status": "connected",
+                "response_time": response_time,
+                "type": Config.DB_CONFIG['type'],
+                "host": Config.DB_CONFIG['mysql']['host']
+            }
+        except Exception as e:
+            status["services"]["database"] = {
+                "status": "disconnected",
+                "error": str(e),
+                "type": Config.DB_CONFIG['type'],
+                "host": Config.DB_CONFIG['mysql']['host']
+            }
+            status["status"] = "degraded"
+            logging.error(f"Database health check failed: {str(e)}")
+
+        # Verificar servidor GPS
+        try:
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            sock.settimeout(2)  # Timeout de 2 segundos
+            start_time = datetime.now()
+            result = sock.connect_ex((Config.SERVER_CONFIG['host'], 
+                                    int(Config.SERVER_CONFIG['port'])))
+            response_time = (datetime.now() - start_time).total_seconds()
+            sock.close()
+            
+            # Obtener información de dispositivos conectados
+            connected_devices = 0
+            if hasattr(DataManager, 'get_connected_devices'):
+                connected_devices = len(DataManager.get_connected_devices())
+            
+            status["services"]["gps_server"] = {
+                "status": "running" if result == 0 else "stopped",
+                "response_time": response_time,
+                "port": Config.SERVER_CONFIG['port'],
+                "connected_devices": connected_devices,
+                "error_code": result if result != 0 else None
+            }
+            
+            if result != 0:
+                status["status"] = "degraded"
+                
+        except Exception as e:
+            status["services"]["gps_server"] = {
+                "status": "error",
+                "error": str(e),
+                "port": Config.SERVER_CONFIG['port']
+            }
+            status["status"] = "degraded"
+            logging.error(f"GPS server health check failed: {str(e)}")
+
+        # Determinar el código de estado HTTP
+        http_status = 200 if status["status"] == "healthy" else 503
+        
+        # Agregar headers útiles
+        response = jsonify(status)
+        response.headers['X-Health-Status'] = status["status"]
+        response.headers['X-Response-Time'] = str(
+            (datetime.now() - start_time).total_seconds()
+        )
+        
+        return response, http_status
+
     except Exception as e:
-        status["services"]["database"] = "disconnected"
-        status["status"] = "degraded"
-        logging.error(f"Database health check failed: {str(e)}")
-
-    # Verificar servidor GPS
-    try:
-        sock = socketio.socket(socketio.AF_INET, socketio.SOCK_STREAM)
-        result = sock.connect_ex((Config.SERVER_CONFIG['host'], 
-                                int(Config.SERVER_CONFIG['port'])))
-        sock.close()
-        status["services"]["gps_server"] = "running" if result == 0 else "stopped"
-    except Exception as e:
-        status["services"]["gps_server"] = "error"
-        status["status"] = "degraded"
-        logging.error(f"GPS server health check failed: {str(e)}")
-
-    return jsonify(status), 200 if status["status"] == "healthy" else 500
+        logging.error(f"Health check failed with error: {str(e)}")
+        return jsonify({
+            "status": "unhealthy",
+            "timestamp": datetime.utcnow().isoformat(),
+            "error": str(e)
+        }), 500
 def get_uptime():
     """
     Obtiene el tiempo de ejecución de la aplicación
