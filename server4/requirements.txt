@@ -32,4 +32,4 @@ gevent-websocket==0.10.1
 
 # Para WebSocket
 simple-websocket>=0.10.0
-
+psutil
