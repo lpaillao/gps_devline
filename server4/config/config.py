@@ -35,6 +35,11 @@ class Config:
     SERVER_CONFIG = {
         'host': os.getenv('SERVER_HOST', '0.0.0.0'),
         'port': int(os.getenv('SERVER_PORT', '6006')),
+        'backlog': 5,
+        'timeout': float(os.getenv('SERVER_TIMEOUT', '1.0')),
+        'max_connections': int(os.getenv('MAX_CONNECTIONS', '100')),
+        'buffer_size': int(os.getenv('BUFFER_SIZE', '8192')),
+        'reuse_port': True
     }
 
     # API
@@ -170,7 +175,13 @@ class Config:
     @classmethod
     def get_server_config(cls) -> Dict[str, Any]:
         """Obtiene la configuración del servidor GPS"""
-        return {
-            'host': cls.SERVER_CONFIG['host'],
-            'port': cls.SERVER_CONFIG['port']
-        }
+        config = cls.SERVER_CONFIG.copy()
+        
+        # Verificar configuración
+        if config['port'] < 1024 and os.geteuid() != 0:
+            logging.warning("Using privileged port without root permissions")
+            
+        if config['port'] == int(os.getenv('PORT', cls.API_CONFIG['port'])):
+            logging.error("GPS server port conflicts with API port")
+            
+        return config

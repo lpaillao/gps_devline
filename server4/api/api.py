@@ -64,54 +64,67 @@ def index():
 # En api.py, agregar este endpoint
 @app.route('/api/gps-server/status')
 def gps_server_status():
-    """
-    Verifica el estado del servidor GPS
-    """
+    """Verifica el estado del servidor GPS"""
     try:
-        # Usar el módulo socket directamente
-        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        sock.settimeout(2)  # Agregar timeout para evitar bloqueos
+        config = Config.get_server_config()
+        host, port = config['host'], config['port']
         
-        # Intentar conectar al puerto del servidor GPS
-        result = sock.connect_ex((Config.SERVER_CONFIG['host'], 
-                                int(Config.SERVER_CONFIG['port'])))
+        # Verificar conexión TCP
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.settimeout(2)
+        result = sock.connect_ex((host, port))
         sock.close()
         
-        # Obtener información adicional del sistema
+        # Construir respuesta
         status = {
             "status": "running" if result == 0 else "stopped",
-            "host": Config.SERVER_CONFIG['host'],
-            "port": Config.SERVER_CONFIG['port'],
+            "host": host,
+            "port": port,
             "timestamp": datetime.utcnow().isoformat(),
             "details": {
-                "socket_error_code": result,
-                "socket_status": "open" if result == 0 else "closed"
+                "error_code": result,
+                "process_info": get_server_process_info(),
+                "connections": get_active_connections()
             }
         }
         
-        # Agregar información de conexiones activas
-        if hasattr(DataManager, 'get_connected_devices'):
-            connected_devices = DataManager.get_connected_devices()
-            status.update({
-                "connected_devices": len(connected_devices),
-                "devices": connected_devices
-            })
-        
-        # Si el servidor no está corriendo, devolver 503
-        if result != 0:
-            return jsonify(status), 503
-            
-        return jsonify(status), 200
+        return jsonify(status), 200 if result == 0 else 503
         
     except Exception as e:
         logging.error(f"Error checking GPS server status: {e}")
         return jsonify({
             "status": "error",
             "error": str(e),
-            "host": Config.SERVER_CONFIG['host'],
-            "port": Config.SERVER_CONFIG['port'],
             "timestamp": datetime.utcnow().isoformat()
         }), 500
+def get_server_process_info():
+    """Obtiene información del proceso del servidor"""
+    try:
+        pid = os.getpid()
+        process = psutil.Process(pid)
+        return {
+            "pid": pid,
+            "status": process.status(),
+            "memory_percent": process.memory_percent(),
+            "cpu_percent": process.cpu_percent(),
+            "threads": len(process.threads()),
+            "connections": len(process.connections())
+        }
+    except:
+        return {}
+
+def get_active_connections():
+    """Obtiene información de conexiones activas"""
+    try:
+        if hasattr(DataManager, 'get_connected_devices'):
+            devices = DataManager.get_connected_devices()
+            return {
+                "count": len(devices),
+                "devices": devices
+            }
+    except:
+        pass
+    return {"count": 0, "devices": []}
 # Health check endpoint
 @app.route('/health')
 @app.route('/api/health')
